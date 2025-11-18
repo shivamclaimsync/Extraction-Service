@@ -1,0 +1,284 @@
+## DOC_ID:944c0164-2322-4efb-ba7e-21f71d2e5950 ##
+2025-06-13 11:52
+
+[LOCATION] 2312523751[DATE]
+2000-04-15
+
+[LOCATION]
+
+Name: [NAME_1]
+[ACCOUNT]
+
+Medical
+
+Birthdate: 1968-05-17
+2025-06-10
+
+Emergency/UC Documents
+
+Emergency Department Report
+
+2025-06-10 06:54 EDT
+
+[MRN]
+
+Mitry [NAME_2] (2025-06-10 07:55
+EDT)
+
+Chief Complaint
+
+Lost power at home; no power to home 02; DIB
+History of Present Illness
+
+[NAME_3] is a 57-year-old female who suffers from chronic respiratory failure secondary to
+COPD. The patient is oxygen dependent. She lost power today. She tried to switch
+to a portable tank without success. She contacted EMS who brought her to the [NAME_4]
+The patient does have history of seizure. There was a concern that the patient might
+have passed out however when EMS arrived the patient was awake and alert. She was
+placed on ox supplementation and her symptoms improved. The patient was brought to
+the [NAME_5] for evaluation. Her significant other is also in the emergency department for
+similar complaint.
+
+Review of Systems
+
+All other review of systems unless otherwise stated in the HPI including 2000-10-02 systems
+are otherwise negative.
+
+Physical Exam
+
+Vitals & Measurements
+
+T: 36.5 °C (Axillary) HR: 85 (Monitored) RR: 14 BP: 107/69 SpO2: 90%
+HT: 165 cm WT: 190.9 kg
+
+Vitals: Reviewed.
+
+General Appearance: Alert, morbidly obese, no acute distress.
+HEENT: Head is normocephalic, atraumatic. Eyes, Ears, and Nose are normal
+inspection. Moist mucous membranes without any lesions.
+Neck: Normal inspection and supple.
+
+Respiratory: Diminished breath sound the bases.
+
+Cardiovascular: Heart is regular rate and rhythm.
+Abdominal: Abdomen is soft, non-tender, non-distended.
+Back: Normal inspection, no CVA tenderness.
+Extremity: Extremities are normal inspection with normal ROM. Bilateral venous stasis
+dermatitis left more than right.
+Neurological: Alert and no focal neurological deficits.
+Skin: Warm, dry, intact. No rashes or lesions.
+Medical Decision Making
+
+[NAME_3] is a 57-year-old female who suffers from chronic respiratory failure secondary to
+COPD. The patient lost power and her concentrator was not working. She tried to
+switch to portable oxygen tank however her oxygen dropped. The patient felt confused.
+There was reported the patient might have been unresponsive but when EMS arrived
+the patient was awake and alert. She was placed on oxygen with improvement of her
+symptoms. By the time the patient arrived to the [NAME_5] she was at her baseline. Patient
+was afebrile 36.5 heart rate 79 blood pressure 130/98 and saturating 94% on 3 [NAME_6] EKG is reassuring. Chest x-ray was repeated and came back consistent with
+her chronic changes without any acute abnormalities.
+
+The patient will not have power at home until noon. I allowed the patient to stay in the
+ED for observation and oxygen supplementation until she can be discharged home
+safely. The patient will be signed out to Dr. [NAME_7] pending her dispo.
+
+Follow Up
+
+No qualifying data available
+
+Printed on 2025-06-13 11:52 EDT
+
+Past Medical History
+Abnormal urinalysis
+Breakthrough seizure
+Chronic obstructive pulmonary disease
+(COPD)
+Chronic pain syndrome
+DM (diabetes mellitus)
+History of seizure
+HTN (hypertension)
+Hypoxemia
+Kidney disease, chronic, stage III (GFR
+30-59 ml/min)
+
+Knee osteoarthritis
+Lymphedema
+Morbid obesity
+Nonischemic cardiomyopathy
+Obesity hypoventilation syndrome
+OSA (obstructive sleep apnea)
+Osteoarthritis
+PHT (pulmonary hypertension)
+Pressure ulcer of sacral region
+Pressure ulcer stage 3
+Seizure
+Home Medications
+
+albuterol-ipratropium 2.5 mg-0.5 mg/3 mL.
+inhalation solution, 3 mL, NEB, QID
+amiodarone 200 mg oral tablet, 200 mg= 1 Tab,
+
+Oral, qAM
+
+dotrimazole 1% topical cream, 1 Appl, Top,
+BID, PRN
+doxycycline hyclate 100 mg oral capsule, 100
+mg= 1 Cap, Oral, BID
+FLUoxetine 40 mg oral capsule, 40 mg= 1 Cap,
+Oral, qAM
+levETIRAcetam 750 mg oral tablet, 1500 mg=2
+Tab, Oral, BID
+levothyroxine 50 mcg (0.05 mg) oral tablet, 50
+mcg= 1 Tab, Oral, QAM
+LORazepam 0.5 mg oral tablet
+Medrol Dosepak 4 mg oral tablet, 1 Packet,
+Oral, Daily
+morphine 20 mg/mL. oral concentrate
+Norco 5 mg-325 mg oral tablet, 1 to 2 Tab,
+Oral, q8hr, PRN
+ondansetron 4 mg oral tablet, disintegrating, 4
+mg= 1 Tab, Oral, q8hr, PRN
+pantoprazole 40 mg oral delayed release tablet,
+40 mg= 1 Tab, Oral, qAM
+promethazine 25 mg oral tablet, 25 mg= 1 Tab,
+Oral, q4hr, PRN
+
+
+# 2025-06-13 11:52
+
+[LOCATION] 23125237511999-12-242000-01-15
+
+[LOCATION]
+
+Name:
+
+[ACCOUNT]
+
+[NAME_1]
+
+Medical
+
+Birthdate: 1968-05-17
+2025-06-10
+
+[MRN]
+
+Emergency/UC Documents
+
+Printed on 2025-06-13 11:52 EDT
+
+=
+
+torsemide 20 mg oral tablet, 60 mg= 3 Tab,
+Oral, qAM
+traZODone 50 mg oral tablet, 50 mg= 1 Tab,
+Oral, QHS
+Ventolin HFA 90 mcg/inh inhalation aerosol, 2
+Inh, Inh, q6hr, PRN
+
+Allergies
+Lettuce (vomiting)
+Bee Stings (Anaphylaxis)
+Blueberries (Swelling)
+Bumex (nausea/vomiting)
+Keflex (Vomiting)
+Onions (Swelling)
+Plastic Tape (irritation)
+Reglan (extrapyramidal reaction)
+cheap jewelry (Hives, Blisters)
+
+iodine
+
+magnesium oxide (nausea and vomitting)
+
+metodopramide
+morphine (can't breathe)
+shellfish (anaphalaxsis)
+
+sulfa drugs
+Social History
+Abuse/Neglect (2025-06-08)
+Has anyone tried to harm you? No. Do you
+feel unsafe at home? No. Do you have a
+safe place to go? Yes. Are you afraid of
+your partner or any other person(s)? No. Is
+there clinical evidence of Abuse/Neglect?
+No.
+
+Alcohol (2019-12-29)
+Alcohol Use: Never.
+
+Electronic Cigarette/Vaping (2020-03-26)
+Electronic Cigarette/Vaping Use: never.
+Employment/School (2019-12-29)
+Employment/School Status: Unemployed.
+Home/Environment (2020-03-26)
+Lives with Lives @[NAME_8] in [LOCATION].
+Living situation: Home/Independent.
+Nutrition (2019-12-29)
+Type of diet: Regular. Caffeine intake
+amount: 20 oz/day.
+Psychosocial/Spiritual (2025-06-08)
+Spiritual/cultural preferences: Unknown.
+Sexual (2025-06-08)
+Sexual orientation: Choose not to disclose.
+Gender identity: Choose not to disclose.
+Substance Use (2025-04-02)
+Type: Marijuana. Frequency: 3-5 times per
+week. Drug use interferes with work/home:
+No. Household substance abuse concerns:
+
+No.
+
+Tobacco (2025-06-08)
+Smoking Status: Never (less than 100 in
+lifetime).
+
+
+# 2025-06-13 11:52
+
+[LOCATION] 2312523751
+
+2000-06-15
+
+[LOCATION]
+
+Name: [NAME_1]
+[ACCOUNT]
+
+Medical
+
+Birthdate: 1968-05-17
+2025-06-10
+
+Emergency/UC Documents
+
+[MRN]
+
+Family History
+Last updated on 2025-04-19
+Cancer: Mother and Father.
+Diabetes mellitus: Mother.
+Hypertension: Father and Sister.
+Myocardial infarction: P. Grandfather.
+OSA - Obstructive sleep apnea: Daughter.
+Stroke: Mother.
+
+Diagnostic Results
+CHEST 1 V 2025-06-10 05:46 EDT
+IMPRESSION:
+Chronic findings of pulmonary arterial
+hypertension. No new findings
+demonstrated
+
+[NAME_9]*Electronically Signed 2025-06-10 07:55
+
+Printed on 2025-06-13 11:52 EDT
+
+Interpreting Location: [LOCATION]
+
+EGG
+
+EKG revealed normal sinus rhythm at 79
+bpm PR interval 180 ms QRS duration 80 ms
+QTc 559 ms. No ST changes.

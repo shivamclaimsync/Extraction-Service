@@ -1,0 +1,207 @@
+## DOC_ID:fd310715-4890-4ac4-99fb-90c9b1b7c02f ##
+[Summary] [[NAME_1]] [[PHONE]]
+
+Summary Report
+
+ALLERGIES
+Allergen Name
+Bee Stings
+Blueberries
+
+bumetanide
+cephalexin
+
+Dandelion
+
+Eliquis
+
+Honey
+
+IODINATED CONTRAST MEDIA
+
+Lettuce
+
+Pollens (trees, grasses, flowers)
+
+Reglan
+
+Shell Fish (shrimp, crayfish, lobster, crab)
+SULFA (SULFONAMIDE ANTIBIOTICS)
+
+Date
+
+Reaction
+Anaphylaxis
+
+Notes
+
+[2025-09-18] Page 1 of 2
+
+MEDICATION LIST
+
+Name
+
+amiodarone 200 mg tablet
+Ativan 0.5 mg tablet
+
+Date Started
+2025-02-06
+2025-07-17
+
+clotrimazole 1% topical cream
+
+2025-06-20
+
+Compazine 10 mg tablet
+
+2025-04-16
+
+diclofenac 1% topical gel
+
+2025-04-13
+
+EpiPen 2-Pak 0.3 mg/0.3 mL injection, auto-injector
+
+2025-05-17
+
+hydrocodone 10 mg-acetaminophen 325 mg tablet
+
+2025-09-10
+
+ipratropium 0.5 mg-albuterol 3 mg (2.5 mg base)/3
+mL nebulization soln
+
+2025-06-20
+
+Keppra 750 mg tablet
+
+2025-06-20
+
+ketorolac 15 mg/mL injection solution
+
+2020-09-102000-01-13
+
+levofloxacin 750 mg tablet
+
+2025-09-07
+
+levothyroxine 50 mcg tablet
+
+2020-03-252000-01-13
+
+Instructions
+
+take 1 tablet (200 mg) by oral route once daily
+Take 1 tablet (0.5 mg) by oral route 2 times per day as needed
+for severe anxiety for 30 days
+Apply to the affected and surrounding areas of skin rash by
+topical route 2 times per day as needed
+Take 1 tablet (10 mg) by oral route 3 times per day as needed
+for nausea
+apply 2 grams to the affected area(s) by topical route 4 times per
+day
+inject 0.3 milliliter (0.3 mg) by intramuscular route once as
+needed for anaphylaxis
+take 1 tablet by oral route every 8 hours as needed for pain
+Inhale 3 milliliters by nebulization route 4 times per day as
+needed for wheezing or shortness of breath
+Take 2 tablets (1,500 mg) by oral route 2 times per day
+inject 2 milliliters (30 mg) by intramuscular route x 1 dose at
+PACE today
+take 1 tablet (750 mg) by oral route once daily for 7 days
+Take 1 tablet (50 mcg) by oral route once daily
+
+loperamide 2 mg capsule
+
+2025-04-09
+
+melatonin 3 mg tablet
+
+2025-07-17
+
+take 1 capsule by oral route 2 times a day as needed
+Take 1 tablet by oral route at bedtime
+
+nitroglycerin 0.4 mg sublingual tablet
+
+2025-05-31
+
+Place 1 tablet (0.4 mg) under the tongue for chest pain. May
+repeat in 5 minutes with max 3 tablets in 15 minutes. Call
+Hospice or PACE if you take 2 or more tablets.
+
+potassium chloride ER 20 mEq tablet,extended
+
+2025-06-20
+
+release
+
+torsemide 20 mg tablet
+
+2025-07-17
+
+Take 1 tablet (20 meq) by oral route once daily with food
+Take 2 tablets (40 mg) by oral route once daily
+
+Reproductive History: none listed
+
+
+[Summary] [[NAME_1]] [[PHONE]63]
+
+DEMOGRAPHICS:
+
+Name:
+
+[NAME_1]
+
+Patient ID: 1763
+
+DOB:
+
+1968-05-17
+
+SSN:
+
+[SSN]
+
+Gender:
+
+Female
+
+Race:
+
+Unknown
+
+Primary
+
+Care
+
+Provider:
+
+Referring
+
+Care
+Provider:
+
+Age:
+Address:
+
+57 years
+
+5890 N 41 1999-12-21 [NAME_2], MI [SSN]
+9898128157
+Unknown
+
+Phone #:
+
+Ethnicity:
+
+Preferred
+
+Care
+
+Byland, [NAME_3]
+
+Provider:
+
+[2025-09-18] Page 2 of 2

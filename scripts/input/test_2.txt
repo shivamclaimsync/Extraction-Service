@@ -1,0 +1,137 @@
+## DOC_ID:717230fd-e7d9-49c5-8b3b-b330f9d5de3a ##
+[Progress Note] [[NAME_1]] [1763] [1968-05-17]
+
+[Date Printed:2025-09-08] Page 1 of 2
+
+Patient Name:
+Patient ID:
+
+Sex:
+
+[NAME_1]
+1763
+Female
+
+Visit Date:[DATE]
+Location:
+
+[LOCATION]
+Progress Note
+
+Provider:
+
+2025-08-09
+[NAME_2], MD
+PACE North
+
+Birthdate:
+
+1968-05-17
+
+Location Address:
+
+[LOCATION]
+
+Chief Complaint
+
+Fall follow up
+
+History Of Present Illness
+
+PCP Progress Note
+
+Location Phone:
+
+[LOCATION] [SSN][PHONE][PHONE] [PHONE]
+
+[NAME_3] is seen this afternoon following a fall earlier this morning in her home. She states that she got up and was
+walking to the bathroom when her legs became entangled with her husband's oxygen tubing. She was able to get
+out of this without injury although as she continued her route, her legs got tangled again and some unevenness on
+the floor altered her step and walker which caused her to fall onto her left side. She has some pain in her left knee.
+She also hit the left temple. She denies loss of consciousness. She frustrated with her brother-in-law who lives in
+the home as she feels that he may have intentionally placed the oxygen tubing in her path.
+
+On an unrelated note, she wonders if there are any options in regards to weight loss for her. She is discouraged
+with her weight of 400 pounds today. She remains on torsemide with stable renal function and unfortunately when
+torsemide was increased during her facility stay, her renal function worsen. She states she has been on Ozempic
+past which she tolerated. She was not using this for diabetes, but rather for weight loss. She states that she is
+trying to become more aware of her diet and caloric intake as well.
+
+Review of Systems
+
+Please see HPI.
+
+Vitals
+
+Cuff
+
+Date
+
+Time
+
+BP
+
+Position
+
+Site
+
+L\R Size HR
+
+TEMP
+RR (F)
+
+BMI BSA
+
+02
+
+WT
+
+HT kg/m² m²
+
+8་ོ
+
+FR
+
+Sat
+
+L/min FiO2 HC
+
+2025-08-09 01:05 PM
+
+402lbs 8oz
+
+Physical Examination
+
+[NAME_3] is alert and conversant. She is pleasant and in no acute distress. Head is normocephalic and atraumatic. I do
+not see any bruising of the left temple or any area of the face. Heart is regular. Lungs are clear to auscultation with
+nonlabored respirations at rest. Extremities reveal mild tenderness to palpation of the left knee. I do not see any
+significant bruising, abrasion or other signs of trauma. Her legs are large from lymphedema so mild effusion is
+difficult to assess for.
+
+Assessment
+
+[Digital Signature Validated]
+
+
+[Progress Note] [[NAME_1]] [1763] [1968-05-17]
+
+[Date Printed:2025-09-08] Page 2 of 2
+
+⚫ (1) PCP Progress Note
+
+780.99/Z73.89
+
+⚫ (2) Fall E888.9/[URL]A
+
+* Mechanical fall over oxygen tubing and uneven floor without injury. No indication for further imaging at this point.
+Discussed trying to be aware of her and her husband's oxygen tubing.
+
+(3) Morbid obesity -Y 22 278.01/E66.01
+
+* BMI >60. Has used Wegovy/Ozempic in the past. Dietician to assist. Can discuss possible weight management program
+in conjunction with dietician and clinic. She definitely would benefit from weight loss although I explained that medications
+might allow more acute loss, the dietary changes are going to give the greatest long-term benefit.
+
+Electronically Signed by: [NAME_2], MD -Author on 2025-08-09 05:10:57 PM
+
+[Digital Signature Validated]
