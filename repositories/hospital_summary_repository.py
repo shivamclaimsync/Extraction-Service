@@ -10,6 +10,9 @@ import logging
 
 from extraction_service.core.exceptions import DatabaseError, DuplicateRecordError
 from extraction_service.models.hospital_summary_db import HospitalSummary
+from extraction_service.extractors.hospital_admission_summary_card.model import (
+    HospitalAdmissionSummaryCard,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +21,7 @@ class HospitalSummaryRepository:
     """
     Repository for CRUD operations on hospital_summaries table.
     
-    Uses SQLAlchemy async ORM with PydanticJSONB for automatic
-    Pydantic model serialization.
+    Stores each section of the hospital admission summary in separate JSONB columns.
     """
     
     def __init__(self, session: AsyncSession):
@@ -49,12 +51,11 @@ class HospitalSummaryRepository:
             DatabaseError: For other database errors
         """
         try:
-            # Handle both new format (summary_card) and legacy format
-            if "summary_card" not in data:
-                # Legacy format: construct summary_card from separate fields
-                from extraction_service.extractors.hospital_admission_summary_card.model import (
-                    HospitalAdmissionSummaryCard,
-                )
+            # Extract the HospitalAdmissionSummaryCard from data
+            summary_card: HospitalAdmissionSummaryCard = data.get("summary_card")
+            
+            # Handle legacy format: construct summary_card from separate fields
+            if not summary_card:
                 summary_card = HospitalAdmissionSummaryCard(
                     facility=data["facility"],
                     timing=data["timing"],
@@ -62,14 +63,32 @@ class HospitalSummaryRepository:
                     medication_risk_assessment=data["medication_risk_assessment"],
                     hospitalization_id=data.get("hospitalization_id"),
                 )
-                data = {
-                    "patient_id": data["patient_id"],
-                    "summary_card": summary_card,
-                }
+            
+            # Extract patient_id
+            patient_id = data.get("patient_id")
+            if not patient_id:
+                raise ValueError("patient_id is required")
+            
+            # Extract hospitalization_id from summary_card
+            hospitalization_id = summary_card.hospitalization_id
+            
+            # Calculate length_of_stay_days from timing
+            length_of_stay_days = summary_card.length_of_stay_days
+            
+            # Break apart the summary_card into separate sections
+            # Convert each Pydantic model to dict for JSONB storage
+            db_data = {
+                "patient_id": patient_id,
+                "hospitalization_id": hospitalization_id,
+                "facility": summary_card.facility.model_dump(mode='json'),
+                "timing": summary_card.timing.model_dump(mode='json'),
+                "diagnosis": summary_card.diagnosis.model_dump(mode='json'),
+                "medication_risk_assessment": summary_card.medication_risk_assessment.model_dump(mode='json'),
+                "length_of_stay_days": length_of_stay_days,
+            }
             
             # Create model instance
-            # PydanticJSONB will automatically handle Pydantic model serialization
-            db_record = HospitalSummary(**data)
+            db_record = HospitalSummary(**db_data)
             
             self.session.add(db_record)
             await self.session.commit()
@@ -86,13 +105,14 @@ class HospitalSummaryRepository:
             await self.session.rollback()
             
             # Check if it's a duplicate hospitalization_id
-            hospitalization_id = (
-                data.get("summary_card", {}).hospitalization_id
-                if isinstance(data.get("summary_card"), dict)
-                else getattr(data.get("summary_card"), "hospitalization_id", None)
-                if hasattr(data.get("summary_card"), "hospitalization_id")
-                else data.get("hospitalization_id")
-            )
+            # Extract hospitalization_id from the data we tried to save
+            hospitalization_id = None
+            if 'summary_card' in locals() and summary_card:
+                hospitalization_id = summary_card.hospitalization_id
+            elif 'db_data' in locals():
+                hospitalization_id = db_data.get("hospitalization_id")
+            else:
+                hospitalization_id = data.get("hospitalization_id")
             
             if hospitalization_id and "hospitalization_id" in str(e.orig):
                 logger.error(
@@ -146,9 +166,9 @@ class HospitalSummaryRepository:
         Returns:
             HospitalSummary instance or None if not found
         """
-        # Query JSONB field using PostgreSQL JSONB operator
+        # Now hospitalization_id is a direct column, so simple query
         stmt = select(HospitalSummary).where(
-            HospitalSummary.summary_card["hospitalization_id"].astext == hospitalization_id
+            HospitalSummary.hospitalization_id == hospitalization_id
         )
         result = await self.session.execute(stmt)
         record = result.scalar_one_or_none()

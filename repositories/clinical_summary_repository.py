@@ -10,6 +10,9 @@ import logging
 
 from extraction_service.core.exceptions import DatabaseError, DuplicateRecordError
 from extraction_service.models.clinical_summary_db import ClinicalSummary
+from extraction_service.extractors.clinical_summary_entity.aggregator import (
+    ClinicalSummaryResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +21,7 @@ class ClinicalSummaryRepository:
     """
     Repository for CRUD operations on clinical_summaries table.
     
-    Uses SQLAlchemy async ORM with PydanticJSONB for automatic
-    Pydantic model serialization.
+    Stores each section of the clinical summary in separate JSONB columns.
     """
     
     def __init__(self, session: AsyncSession):
@@ -47,9 +49,63 @@ class ClinicalSummaryRepository:
             DatabaseError: For database errors
         """
         try:
+            # Extract the ClinicalSummaryResult from data
+            summary_result: ClinicalSummaryResult = data.get("summary")
+            if not summary_result:
+                raise ValueError("'summary' (ClinicalSummaryResult) is required in data")
+            
+            # Extract patient_id
+            patient_id = data.get("patient_id")
+            if not patient_id:
+                # Try to get from metadata
+                patient_id = summary_result.metadata.patient_id
+            if not patient_id:
+                raise ValueError("patient_id is required")
+            
+            # Extract hospitalization_id from metadata
+            hospitalization_id = summary_result.metadata.hospitalization_id
+            
+            # Break apart the summary into separate sections
+            # Convert each Pydantic model to dict for JSONB storage
+            db_data = {
+                "patient_id": patient_id,
+                "hospitalization_id": hospitalization_id,
+                "patient_presentation": (
+                    summary_result.summary.patient_presentation.model_dump(mode='json')
+                    if summary_result.summary.patient_presentation else None
+                ),
+                "relevant_history": (
+                    summary_result.summary.relevant_history.model_dump(mode='json')
+                    if summary_result.summary.relevant_history else None
+                ),
+                "clinical_findings": (
+                    summary_result.summary.clinical_findings.model_dump(mode='json')
+                    if summary_result.summary.clinical_findings else None
+                ),
+                "clinical_assessment": (
+                    summary_result.summary.clinical_assessment.model_dump(mode='json')
+                    if summary_result.summary.clinical_assessment else None
+                ),
+                "hospital_course": (
+                    summary_result.summary.hospital_course.model_dump(mode='json')
+                    if summary_result.summary.hospital_course else None
+                ),
+                "follow_up_plan": (
+                    summary_result.summary.follow_up_plan.model_dump(mode='json')
+                    if summary_result.summary.follow_up_plan else None
+                ),
+                "treatments_procedures": (
+                    [t.model_dump(mode='json') for t in summary_result.summary.treatments_procedures]
+                    if summary_result.summary.treatments_procedures else None
+                ),
+                "lab_results": (
+                    [lab.model_dump(mode='json') for lab in summary_result.summary.lab_results]
+                    if summary_result.summary.lab_results else None
+                ),
+            }
+            
             # Create model instance
-            # PydanticJSONB will automatically handle Pydantic model serialization
-            db_record = ClinicalSummary(**data)
+            db_record = ClinicalSummary(**db_data)
             
             self.session.add(db_record)
             await self.session.commit()
@@ -107,9 +163,9 @@ class ClinicalSummaryRepository:
         Returns:
             ClinicalSummary instance or None if not found
         """
-        # Query JSONB field using PostgreSQL JSONB operator
+        # Now hospitalization_id is a direct column, so simple query
         stmt = select(ClinicalSummary).where(
-            ClinicalSummary.summary["metadata"]["hospitalization_id"].astext == hospitalization_id
+            ClinicalSummary.hospitalization_id == hospitalization_id
         )
         result = await self.session.execute(stmt)
         record = result.scalar_one_or_none()

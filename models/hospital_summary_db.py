@@ -1,30 +1,19 @@
 """SQLAlchemy model for hospital_summaries table."""
 
 import uuid
-from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, Integer, Text
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 from extraction_service.database.base import Base
-from extraction_service.database.types import PydanticJSONB
-
-# Import the complete Pydantic model from extractors
-from extraction_service.extractors.hospital_admission_summary_card.model import (
-    HospitalAdmissionSummaryCard,
-)
 
 
 class HospitalSummary(Base):
     """
     SQLAlchemy model for hospital_summaries table.
     
-    Uses PydanticJSONB to store the entire HospitalAdmissionSummaryCard Pydantic model
-    in a single JSONB column. This eliminates structural duplication - the same model
-    used for LLM extraction is stored directly in the database.
-    
-    Database-specific fields (id, patient_id, created_at) are kept separate for
-    efficient querying and indexing.
+    Stores each section of the hospital admission summary in separate JSONB columns
+    for better querying and indexing capabilities.
     """
     
     __tablename__ = "hospital_summaries"
@@ -37,7 +26,14 @@ class HospitalSummary(Base):
         nullable=False,
     )
     
-    # Patient identifier (indexed for efficient queries)
+    # Identifiers
+    hospitalization_id = Column(
+        Text,
+        nullable=True,
+        index=True,
+        comment="Hospitalization/encounter identifier"
+    )
+    
     patient_id = Column(
         Text,
         nullable=False,
@@ -45,60 +41,43 @@ class HospitalSummary(Base):
         comment="Patient identifier"
     )
     
-    # Single JSONB column storing the complete summary card
-    summary_card = Column(
-        PydanticJSONB(HospitalAdmissionSummaryCard),
+    # Separate JSONB columns for each section
+    facility = Column(
+        JSONB,
         nullable=False,
-        comment="Complete hospital admission summary card with facility, timing, "
-                "diagnosis, and medication risk assessment"
+        comment="Facility information (JSONB)"
     )
     
-    # Database metadata
-    created_at = Column(
-        DateTime,
+    timing = Column(
+        JSONB,
         nullable=False,
-        default=datetime.now,
-        comment="Timestamp when the record was created"
+        comment="Admission and discharge timing (JSONB)"
     )
     
-    # Convenience properties for backward compatibility and easier access
-    @property
-    def hospitalization_id(self) -> str | None:
-        """Get hospitalization_id from summary_card."""
-        return self.summary_card.hospitalization_id if self.summary_card else None
+    diagnosis = Column(
+        JSONB,
+        nullable=False,
+        comment="Primary and secondary diagnoses (JSONB)"
+    )
     
-    @property
-    def facility(self):
-        """Get facility data from summary_card."""
-        return self.summary_card.facility if self.summary_card else None
+    medication_risk_assessment = Column(
+        JSONB,
+        nullable=False,
+        comment="Medication risk assessment (JSONB)"
+    )
     
-    @property
-    def timing(self):
-        """Get timing data from summary_card."""
-        return self.summary_card.timing if self.summary_card else None
-    
-    @property
-    def diagnosis(self):
-        """Get diagnosis data from summary_card."""
-        return self.summary_card.diagnosis if self.summary_card else None
-    
-    @property
-    def medication_risk_assessment(self):
-        """Get medication risk assessment from summary_card."""
-        return self.summary_card.medication_risk_assessment if self.summary_card else None
-    
-    @property
-    def length_of_stay_days(self) -> int:
-        """Get length of stay from summary_card."""
-        return self.summary_card.length_of_stay_days if self.summary_card else 0
+    # Computed/metadata fields
+    length_of_stay_days = Column(
+        Integer,
+        nullable=False,
+        comment="Length of stay in days (computed from timing)"
+    )
     
     def __repr__(self) -> str:
         """String representation of the model."""
-        facility_name = (
-            self.summary_card.facility.facility_name
-            if self.summary_card and self.summary_card.facility
-            else None
-        )
+        facility_name = None
+        if self.facility and isinstance(self.facility, dict):
+            facility_name = self.facility.get("facility_name")
         return (
             f"<HospitalSummary("
             f"id={self.id}, "
@@ -111,17 +90,15 @@ class HospitalSummary(Base):
     def to_dict(self) -> dict:
         """
         Convert to dictionary representation.
-        
-        Note: The summary_card is automatically converted back to a Pydantic
-        instance when queried, so you can access properties like
-        self.summary_card.facility.facility_name
         """
         return {
             "id": str(self.id),
             "patient_id": self.patient_id,
             "hospitalization_id": self.hospitalization_id,
-            "summary_card": self.summary_card.model_dump() if self.summary_card else None,
+            "facility": self.facility,
+            "timing": self.timing,
+            "diagnosis": self.diagnosis,
+            "medication_risk_assessment": self.medication_risk_assessment,
             "length_of_stay_days": self.length_of_stay_days,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

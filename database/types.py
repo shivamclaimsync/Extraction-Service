@@ -47,11 +47,12 @@ class PydanticJSONB(TypeDecorator):
         if value is None:
             return None
         
-        # If it's already a Pydantic model, convert to dict
+        # If it's already a Pydantic model, convert to dict with JSON serialization
+        # This handles datetime, UUID, and other non-JSON-serializable types
         if isinstance(value, BaseModel):
-            return value.model_dump()
+            return value.model_dump(mode='json')
         
-        # If it's a dict, return as is
+        # If it's a dict, return as is (but ensure it's JSON-serializable)
         if isinstance(value, dict):
             return value
         

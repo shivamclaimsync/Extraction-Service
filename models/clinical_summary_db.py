@@ -4,27 +4,17 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Column, DateTime, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 from extraction_service.database.base import Base
-from extraction_service.database.types import PydanticJSONB
-
-# Import the complete Pydantic model from extractors
-from extraction_service.extractors.clinical_summary_entity.aggregator import (
-    ClinicalSummaryResult,
-)
 
 
 class ClinicalSummary(Base):
     """
     SQLAlchemy model for clinical_summaries table.
     
-    Uses PydanticJSONB to store the entire ClinicalSummaryResult Pydantic model
-    in a single JSONB column. This eliminates structural duplication - the same model
-    used for LLM extraction is stored directly in the database.
-    
-    Database-specific fields (id, patient_id, created_at) are kept separate for
-    efficient querying and indexing.
+    Stores each section of the clinical summary in separate JSONB columns
+    for better querying and indexing capabilities.
     """
     
     __tablename__ = "clinical_summaries"
@@ -37,7 +27,14 @@ class ClinicalSummary(Base):
         nullable=False,
     )
     
-    # Patient identifier (indexed for efficient queries)
+    # Identifiers
+    hospitalization_id = Column(
+        Text,
+        nullable=True,
+        index=True,
+        comment="Hospitalization/encounter identifier"
+    )
+    
     patient_id = Column(
         Text,
         nullable=False,
@@ -45,12 +42,54 @@ class ClinicalSummary(Base):
         comment="Patient identifier"
     )
     
-    # Single JSONB column storing the complete summary result
-    summary = Column(
-        PydanticJSONB(ClinicalSummaryResult),
-        nullable=False,
-        comment="Complete clinical summary with presentation, history, findings, "
-                "assessment, course, follow-up, treatments, and lab results"
+    # Separate JSONB columns for each section
+    patient_presentation = Column(
+        JSONB,
+        nullable=True,
+        comment="Patient presentation data (symptoms, chief complaint, vital signs)"
+    )
+    
+    relevant_history = Column(
+        JSONB,
+        nullable=True,
+        comment="Relevant medical history, allergies, medications"
+    )
+    
+    clinical_findings = Column(
+        JSONB,
+        nullable=True,
+        comment="Clinical findings from physical exam and observations"
+    )
+    
+    
+    clinical_assessment = Column(
+        JSONB,
+        nullable=True,
+        comment="Clinical assessment, diagnoses, and reasoning"
+    )
+    
+    hospital_course = Column(
+        JSONB,
+        nullable=True,
+        comment="Hospital course and progression during stay"
+    )
+    
+    follow_up_plan = Column(
+        JSONB,
+        nullable=True,
+        comment="Follow-up plan and discharge instructions"
+    )
+    
+    treatments_procedures = Column(
+        JSONB,
+        nullable=True,
+        comment="Treatments, procedures, and interventions"
+    )
+    
+    lab_results = Column(
+        JSONB,
+        nullable=True,
+        comment="Lab test results"
     )
     
     # Database metadata
@@ -61,55 +100,32 @@ class ClinicalSummary(Base):
         comment="Timestamp when the record was created"
     )
     
-    # Convenience properties for backward compatibility and easier access
-    @property
-    def hospitalization_id(self) -> str | None:
-        """Get hospitalization_id from summary metadata."""
-        return self.summary.metadata.hospitalization_id if self.summary else None
-    
-    @property
-    def patient_presentation(self):
-        """Get patient presentation from summary."""
-        return self.summary.summary.patient_presentation if self.summary else None
-    
-    @property
-    def lab_results(self):
-        """Get lab results from summary."""
-        return self.summary.summary.lab_results if self.summary else []
-    
-    @property
-    def lab_summary(self):
-        """Get lab summary from summary."""
-        return self.summary.summary.lab_summary if self.summary else None
-    
     def __repr__(self) -> str:
         """String representation of the model."""
-        hospitalization_id = (
-            self.summary.metadata.hospitalization_id
-            if self.summary and self.summary.metadata
-            else None
-        )
         return (
             f"<ClinicalSummary("
             f"id={self.id}, "
             f"patient_id={self.patient_id}, "
-            f"hospitalization_id={hospitalization_id}"
+            f"hospitalization_id={self.hospitalization_id}"
             f")>"
         )
     
     def to_dict(self) -> dict:
         """
         Convert to dictionary representation.
-        
-        Note: The summary is automatically converted back to a Pydantic
-        instance when queried, so you can access properties like
-        self.summary.summary.patient_presentation
         """
         return {
             "id": str(self.id),
             "patient_id": self.patient_id,
             "hospitalization_id": self.hospitalization_id,
-            "summary": self.summary.model_dump() if self.summary else None,
+            "patient_presentation": self.patient_presentation,
+            "relevant_history": self.relevant_history,
+            "clinical_findings": self.clinical_findings,
+            "clinical_assessment": self.clinical_assessment,
+            "hospital_course": self.hospital_course,
+            "follow_up_plan": self.follow_up_plan,
+            "treatments_procedures": self.treatments_procedures,
+            "lab_results": self.lab_results,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

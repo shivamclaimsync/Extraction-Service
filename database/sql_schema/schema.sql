@@ -125,3 +125,97 @@ COMMENT ON COLUMN public.hospital_summaries.medication_risk_assessment IS
 -- SELECT * FROM hospital_summaries WHERE diagnosis->>'primary_diagnosis' ILIKE '%myocardial%';
 -- SELECT * FROM hospital_summaries WHERE (medication_risk_assessment->>'risk_level') = 'high';
 
+-- Clinical summaries table
+CREATE TABLE IF NOT EXISTS public.clinical_summaries
+(
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    
+    -- Identifiers
+    hospitalization_id text COLLATE pg_catalog."default",
+    patient_id text COLLATE pg_catalog."default" NOT NULL,
+    
+    -- Separate JSONB columns for each section
+    patient_presentation jsonb,
+    relevant_history jsonb,
+    clinical_findings jsonb,
+    clinical_assessment jsonb,
+    hospital_course jsonb,
+    follow_up_plan jsonb,
+    treatments_procedures jsonb,
+    lab_results jsonb,
+    
+    -- Database metadata
+    created_at timestamp without time zone NOT NULL DEFAULT now(),
+    
+    -- Primary key
+    CONSTRAINT clinical_summaries_pkey PRIMARY KEY (id)
+);
+
+-- Indexes for efficient queries
+CREATE INDEX IF NOT EXISTS ix_clinical_summaries_patient_id 
+    ON public.clinical_summaries USING btree (patient_id COLLATE pg_catalog."default");
+
+CREATE INDEX IF NOT EXISTS ix_clinical_summaries_hospitalization_id 
+    ON public.clinical_summaries USING btree (hospitalization_id COLLATE pg_catalog."default");
+
+CREATE INDEX IF NOT EXISTS ix_clinical_summaries_created_at 
+    ON public.clinical_summaries USING btree (created_at DESC);
+
+-- Optional: GIN indexes for JSONB columns to enable efficient JSON queries
+CREATE INDEX IF NOT EXISTS ix_clinical_summaries_patient_presentation_gin 
+    ON public.clinical_summaries USING gin (patient_presentation);
+
+CREATE INDEX IF NOT EXISTS ix_clinical_summaries_clinical_assessment_gin 
+    ON public.clinical_summaries USING gin (clinical_assessment);
+
+CREATE INDEX IF NOT EXISTS ix_clinical_summaries_lab_results_gin 
+    ON public.clinical_summaries USING gin (lab_results);
+
+-- Comments documenting table structure
+COMMENT ON TABLE public.clinical_summaries IS 'Clinical visit summaries extracted from progress notes';
+
+COMMENT ON COLUMN public.clinical_summaries.patient_presentation IS 
+'Patient presentation data (JSONB):
+Symptoms, chief complaint, vital signs, and initial presentation information';
+
+COMMENT ON COLUMN public.clinical_summaries.relevant_history IS 
+'Relevant medical history (JSONB):
+Medical history, allergies, medications, and relevant past medical information';
+
+COMMENT ON COLUMN public.clinical_summaries.clinical_findings IS 
+'Clinical findings (JSONB):
+Physical exam findings, observations, and clinical notes';
+
+COMMENT ON COLUMN public.clinical_summaries.clinical_assessment IS 
+'Clinical assessment (JSONB):
+Diagnoses, clinical reasoning, and assessment information';
+
+COMMENT ON COLUMN public.clinical_summaries.hospital_course IS 
+'Hospital course (JSONB):
+Progression of the patient during hospital stay';
+
+COMMENT ON COLUMN public.clinical_summaries.follow_up_plan IS 
+'Follow-up plan (JSONB):
+Discharge instructions and follow-up care recommendations';
+
+COMMENT ON COLUMN public.clinical_summaries.treatments_procedures IS 
+'Treatments and procedures (JSONB array):
+List of medications, procedures, and interventions';
+
+COMMENT ON COLUMN public.clinical_summaries.lab_results IS 
+'Lab results (JSONB array):
+Laboratory test results and values';
+
+-- Example queries for clinical_summaries
+
+-- Get all records for a patient
+-- SELECT * FROM clinical_summaries WHERE patient_id = 'PAT-123' ORDER BY created_at DESC;
+
+-- Get by hospitalization_id
+-- SELECT * FROM clinical_summaries WHERE hospitalization_id = 'HOSP-456';
+
+-- Query JSONB fields
+-- SELECT * FROM clinical_summaries WHERE patient_presentation->>'symptoms' @> '["Chest pain"]';
+-- SELECT * FROM clinical_summaries WHERE clinical_assessment->>'primary_diagnosis' ILIKE '%diabetes%';
+-- SELECT * FROM clinical_summaries WHERE lab_results @> '[{"status": "critical"}]';
+
