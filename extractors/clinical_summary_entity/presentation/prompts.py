@@ -1,341 +1,282 @@
 """Prompts for patient presentation extraction."""
 
-system_prompt = """
-You are a medical AI assistant specializing in patient presentation extraction from clinical documents.
+system_prompt = """You are a medical data extraction specialist. Extract patient presentation information from clinical documents.
 
-Your role is to accurately extract presenting symptoms, arrival method, and presentation circumstances 
-exactly as documented. You must normalize symptom terminology, avoid duplicating symptoms in severity 
-indicators, and distinguish between documented facts and inference.
+Focus on how and why the patient arrived. Return valid JSON only."""
 
-Follow all task instructions precisely and respond only in valid JSON format.
-"""
-
-presentation_prompt = '''
-You are analyzing clinical documents to extract the patient's presentation. Your extraction must be 
-rigorous, evidence-based, and clearly distinguish symptoms from severity indicators.
-
-## Core Principles
-
-### EXTRACTION NOT INFERENCE
-**START HERE**: Extract only documented presentation information. Do NOT infer symptoms not stated.
-
-You will be PENALIZED for:
-- Inventing or inferring symptoms not documented
-- Duplicating symptoms in severity_indicators
-- Vague symptom descriptions without anatomical specificity
-- Including symptoms that developed DURING hospitalization
-- Using non-standard presentation_method values
-
-You will be REWARDED for:
-- Normalized symptom terminology with anatomical detail
-- Clear distinction between symptoms and severity indicators
-- Accurate timeline extraction
-- Standardized presentation_method values
-- Elimination of duplicates
-
----
-
-## Step 1: Locate Presentation Sections
-
-Search these sections IN ORDER:
-1. **Chief Complaint** (or **CC**)
-2. **History of Present Illness** (or **HPI**)
-3. **Reason for Visit**
-4. **Admission Summary** (opening paragraph)
-5. **Triage** (for ED notes)
-
----
-
-## Step 2: Extract and Normalize Symptoms
-
-### Symptom Extraction Rules:
-
-✅ **EXTRACT**:
-- Chief complaints as documented
-- Presenting symptoms at time of arrival
-- Objective findings at presentation (visible injuries, findings)
-- Anatomical location when specified
-
-❌ **DO NOT EXTRACT**:
-- Symptoms that developed during hospitalization
-- Symptoms from Past Medical History
-- Family member's symptoms
-- Differential diagnoses (these are clinician interpretations, not patient symptoms)
-
-### Normalization Rules:
-
-1. **Use clinical terminology**:
-   - "Headache" not "head hurts"
-   - "Dizziness" not "dizzy spells"
-   - "Dyspnea" for shortness of breath (if documented as such)
-
-2. **Include anatomical specificity**:
-   - "Forehead contusion" not just "contusion"
-   - "Bilateral neck pain - paraspinal" not just "neck pain"
-   - "Left knee swelling" not just "swelling"
-
-3. **Consolidate duplicates**:
-   - "Nausea" (not "nausea" and "mild nausea" separately)
-   - "Head injury with forehead contusion" (combine related)
-
-4. **Prioritize by clinical significance**:
-   - List most significant symptom first
-   - Group related symptoms together
-
-### Symptom Examples:
-
-**Good Normalization**:
-- "Head injury with forehead contusion"
-- "Dizziness with orthostatic component"
-- "Neck pain - bilateral paraspinal"
-- "Tinnitus"
-- "Nausea"
-
-**Bad (Not Normalized)**:
-- "Hurt head" → should be "Head injury"
-- "Neck hurts" → should be "Neck pain"
-- "Pain" (no location) → need anatomical detail
-
-### symptom_source:
-Document where symptoms were found:
-- "Chief Complaint"
-- "History of Present Illness"
-- "Triage"
-
----
-
-## Step 3: Determine Presentation Method
-
-### Standardized Values (use ONLY these):
-
-| Value | When to Use |
-|-------|-------------|
-| `emergency_department` | Patient presented to ED (walk-in or EMS) |
-| `ambulance` | Explicitly stated EMS transport or ambulance |
-| `scheduled_admission` | Pre-scheduled admission or procedure |
-| `direct_admission` | Direct admit from clinic/office |
-| `transfer` | Transfer from another facility |
-| `observation` | Admitted for observation |
-
-**Use null** if presentation method cannot be determined from documentation.
-
----
-
-## Step 4: Create Presentation Details
-
-### Guidelines:
-
-Write 1-2 concise sentences summarizing:
-1. **HOW** the patient presented (mechanism, context)
-2. **WHY** they came (precipitating event)
-3. **Key circumstances** (location, activity, timeline)
-
-### Include:
-- Mechanism of injury if applicable (fell, hit head, etc.)
-- Activity at time of event (bending over, standing up, etc.)
-- Important negatives (no LOC, no seizure, etc.)
-- EMS involvement if applicable
-
-### Examples:
-
-**Good Presentation Details**:
-- "Presented by EMS after hitting head on bathroom counter twice while bending over. Got dizzy when standing up, nearly fell twice. No loss of consciousness."
-- "Lost power at home affecting oxygen concentrator. Patient oxygen-dependent for COPD, came to ED for oxygen supplementation until power restored."
-- "Mechanical fall at home, tripped over oxygen tubing and uneven floor. No injuries sustained."
-
-**Bad (Too Vague)**:
-- "Came to ED for head injury" (missing mechanism and context)
-- "Fall" (needs more detail)
-
----
-
-## Step 5: Extract Presentation Timeline
-
-Document timeline of symptom onset or event:
-
-**Examples**:
-- "Symptoms began 2 hours prior to arrival"
-- "Fell this morning around 8 AM"
-- "Gradual onset over past 3 days"
-- "Sudden onset while standing from chair"
-
-**Use null** if no timeline documented.
-
----
-
-## Step 6: Identify Severity Indicators
-
-### CRITICAL RULE: Severity Indicators ≠ Symptoms
-
-Severity indicators are **distinct acuity markers** that indicate urgency or instability.
-
-### Examples of Severity Indicators (NOT symptoms):
-
-**Acuity Markers**:
-- "Orthostatic dizziness" (risk factor, not just symptom)
-- "Near-falls (2 episodes)" (event count showing severity)
-- "Syncope episode" (loss of consciousness - critical marker)
-- "Altered mental status on arrival" (acuity)
-- "EMS transport" (suggests severity)
-- "Hypotension requiring IV fluids" (intervention needed)
-- "Respiratory distress" (instability)
-
-**Fall Risk Factors** (when falls are presenting issue):
-- "History of near-falls"
-- "Orthostatic symptoms documented"
-- "Polypharmacy with CNS depressants"
-- "Multiple falls in same encounter"
-
-### Overlap Check:
-
-❌ **WRONG** (duplicate of symptoms):
-```json
-symptoms: ["head injury", "dizziness"]
-severity_indicators: ["head injury", "dizziness"]
-```
-
-✅ **CORRECT** (distinct markers):
-```json
-symptoms: ["head injury", "dizziness", "nausea"]
-severity_indicators: ["orthostatic dizziness", "near-falls (2 episodes)", "EMS transport"]
-```
-
-### When to Use Empty Array:
-
-Use `[]` if:
-- No acuity markers documented
-- Presentation is routine or non-urgent
-- Patient stable on arrival
-
----
-
-## JSON Output Schema
-
-```json
-{{
-  "patient_presentation": {{
-    "symptoms": ["array of normalized symptoms"],
-    "symptom_source": "string or null",
-    "presentation_method": "emergency_department|ambulance|scheduled_admission|direct_admission|transfer|observation|null",
-    "presentation_details": "string or null (1-2 sentence narrative)",
-    "presentation_timeline": "string or null",
-    "severity_indicators": ["array of distinct acuity markers"]
-  }}
-}}
-```
-
----
-
-## Examples
-
-### Example 1: Trauma with Fall Risk
-
-```json
-{{
-  "patient_presentation": {{
-    "symptoms": [
-      "Head injury with forehead contusion",
-      "Dizziness",
-      "Nausea",
-      "Tinnitus",
-      "Neck pain - bilateral paraspinal"
-    ],
-    "symptom_source": "Chief Complaint and History of Present Illness",
-    "presentation_method": "ambulance",
-    "presentation_details": "Presented by EMS after hitting head on bathroom counter twice while bending over. Got dizzy when standing up, nearly fell twice. No loss of consciousness.",
-    "presentation_timeline": "Event occurred morning of admission",
-    "severity_indicators": [
-      "Orthostatic dizziness",
-      "Near-falls (2 episodes before actual fall)",
-      "EMS transport",
-      "Multiple head impacts (2 documented)"
-    ]
-  }}
-}}
-```
-
-### Example 2: Environmental Presentation (Low Acuity)
-
-```json
-{{
-  "patient_presentation": {{
-    "symptoms": [
-      "Dyspnea - chronic baseline"
-    ],
-    "symptom_source": "Chief Complaint",
-    "presentation_method": "emergency_department",
-    "presentation_details": "Lost power at home affecting oxygen concentrator. Patient oxygen-dependent for COPD, came to ED for oxygen supplementation until power restored at noon.",
-    "presentation_timeline": "Lost power early morning, presented to ED around 9 AM",
-    "severity_indicators": []
-  }}
-}}
-```
-
-### Example 3: Simple Mechanical Fall
-
-```json
-{{
-  "patient_presentation": {{
-    "symptoms": [
-      "Mechanical fall - no injury"
-    ],
-    "symptom_source": "Chief Complaint",
-    "presentation_method": "emergency_department",
-    "presentation_details": "Tripped over oxygen tubing and uneven floor at home. No syncope, no dizziness, no loss of consciousness. No injuries sustained.",
-    "presentation_timeline": "Fell earlier in the day",
-    "severity_indicators": []
-  }}
-}}
-```
-
-### Example 4: Acute Presentation with Instability
-
-```json
-{{
-  "patient_presentation": {{
-    "symptoms": [
-      "Altered mental status",
-      "Acute kidney injury",
-      "Metabolic acidosis"
-    ],
-    "symptom_source": "History of Present Illness",
-    "presentation_method": "ambulance",
-    "presentation_details": "Brought by EMS from home with confusion and decreased responsiveness. Family reported patient had nausea and decreased oral intake for 2-3 days.",
-    "presentation_timeline": "Symptoms progressive over 2-3 days, acute worsening day of admission",
-    "severity_indicators": [
-      "Altered mental status requiring EMS",
-      "Severe metabolic acidosis (pH 7.28)",
-      "Critical lactate elevation (4.2 mmol/L)",
-      "Severe acute kidney injury (Cr 2.4 from baseline 1.1)"
-    ]
-  }}
-}}
-```
-
----
-
-## Validation Checklist
-
-Before submitting, verify:
-
-- [ ] All symptoms normalized with clinical terminology
-- [ ] Anatomical specificity included when documented
-- [ ] No duplicate symptoms (consolidate related)
-- [ ] symptom_source documented
-- [ ] presentation_method uses standardized values (or null)
-- [ ] presentation_details provides clear 1-2 sentence narrative
-- [ ] Timeline extracted if documented
-- [ ] severity_indicators are DISTINCT from symptoms
-- [ ] No symptoms that developed during hospitalization
-- [ ] Empty array used appropriately for severity_indicators when none present
-
----
+presentation_prompt = '''Extract patient presentation from this clinical note.
 
 <clinical_note>
 {clinical_text}
 </clinical_note>
 
-Respond only with the structured JSON dictionary matching the schema, with no additional text.
+---
+
+## YOUR TASK
+
+Extract presentation in 3 steps:
+1. Find patient IDs
+2. Extract presenting symptoms and context
+3. Format as JSON
+
+---
+
+## STEP 1: FIND IDs
+
+**patient_id:**
+- Look for "MRN:" in document header
+- Extract the number after it (8-10 digits)
+- Example: "MRN: 10838402" → "10838402"
+- **DO NOT USE**: RRD numbers (like "RRD 5552312523751")
+
+**hospitalization_id:**
+- Look for "Account Number:" in document header
+- Extract the number after it (~10 digits)
+- Example: "Account Number: 4002138129" → "4002138129"
+
+---
+
+## STEP 2: EXTRACT PRESENTATION
+
+### A. Find Symptoms
+
+**Where to look:**
+- Chief Complaint section
+- History of Present Illness section
+- Reason for Visit
+
+**What to extract:**
+- Symptoms patient had when they arrived
+- Injuries or findings at presentation
+- Main complaint or reason for visit
+
+**Examples:**
+- "Smoke inhalation"
+- "Shortness of breath"
+- "Chest pain"
+- "Head injury"
+- "Dizziness"
+- "Nausea"
+
+**Normalize abbreviations:**
+- SOB → "Shortness of breath"
+- LOC → "Loss of consciousness"
+- N/V → "Nausea and vomiting"
+
+**Keep it simple:** Extract as documented, don't over-interpret.
+
+---
+
+### B. Document Where Found
+
+**symptom_source:**
+- Record which section you found symptoms in
+- Examples: "Chief Complaint", "History of Present Illness", "Chief Complaint and History of Present Illness"
+
+---
+
+### C. Determine Arrival Method
+
+**presentation_method** (pick one):
+- "ambulance" = arrived by EMS/ambulance
+- "emergency_department" = walked in or brought by family
+- "transfer" = transferred from another hospital
+- "scheduled_admission" = planned admission
+- "direct_admission" = admitted directly from clinic
+- null = not documented
+
+**Most common:**
+- If says "EMS", "ambulance", "paramedics" → "ambulance"
+- If says "walked in", "brought by family", "self-presented" → "emergency_department"
+
+---
+
+### D. Write Presentation Summary
+
+**presentation_details:**
+Write 1-3 sentences answering:
+- How did patient arrive? (EMS? Walk-in?)
+- Why did they come? (What happened?)
+- What was the situation? (Context, location, activity)
+
+**Good examples:**
+- "Presented by EMS after plastic spice rack caught fire on stove, causing smoke inhalation. Patient reports shortness of breath."
+- "Arrived by ambulance after fall at home. Hit head on counter, had dizziness."
+- "Walked into ED with chest pain that started 2 hours ago while at rest."
+
+**Keep it factual:** Just describe what happened, no interpretation.
+
+---
+
+### E. Extract Timeline (if available)
+
+**presentation_timeline:**
+- When did symptoms start?
+- When did event occur?
+- How long between event and arrival?
+
+**Examples:**
+- "Symptoms started 2 hours before arrival"
+- "Event occurred this morning"
+- "Arrived 2025-08-29 21:30 EDT"
+- "Seen earlier same day for chest pain"
+
+**Use null if timing not documented.**
+
+---
+
+### F. Note Severity Indicators
+
+**severity_indicators:**
+List factors showing this was urgent or serious:
+
+**Include things like:**
+- "EMS transport required"
+- "Respiratory distress"
+- "Altered mental status"
+- "Multiple falls"
+- "Oxygen-dependent at baseline"
+- "Second ED visit same day"
+- Physical exam findings: "Mild wheezing", "Hypotension"
+
+**Don't just repeat symptoms** - add context that shows severity.
+
+**Empty array [] is fine** if presentation was routine/non-urgent.
+
+---
+
+## STEP 3: OUTPUT JSON
+```json
+{{
+  "patient_presentation": {{
+    "symptoms": ["array of symptoms"],
+    "symptom_source": "where found",
+    "presentation_method": "ambulance|emergency_department|transfer|scheduled_admission|direct_admission|null",
+    "presentation_details": "1-3 sentence summary",
+    "presentation_timeline": "timing info or null",
+    "severity_indicators": ["factors showing severity"]
+  }},
+  "patient_id": "MRN string",
+  "hospitalization_id": "Account Number string"
+}}
+```
+
+---
+
+## EXAMPLES
+
+### Example 1: Chemical exposure
+
+**Input snippet:**
+```
+MRN: 10838402
+Account Number: 4002138129
+Chief Complaint: Patient arrives by EMS after plastic spice rack caught on fire
+History: 85-year-old with COPD, reports smoke inhalation, shortness of breath
+Vitals: SpO2 100%, mild bilateral wheezing
+Earlier today: seen for chest pain, COPD exacerbation, started on Decadron
+```
+
+**Output:**
+```json
+{{
+  "patient_presentation": {{
+    "symptoms": [
+      "Smoke inhalation",
+      "Shortness of breath"
+    ],
+    "symptom_source": "Chief Complaint and History of Present Illness",
+    "presentation_method": "ambulance",
+    "presentation_details": "Presented by EMS after plastic spice rack caught fire on stove, leading to smoke inhalation. Patient with COPD reports shortness of breath and respiratory irritation. Seen earlier same day for COPD exacerbation.",
+    "presentation_timeline": "Arrived 2025-08-29 21:30 EDT. Earlier same-day visit for chest pain and COPD exacerbation.",
+    "severity_indicators": [
+      "EMS transport required",
+      "Chemical fume exposure",
+      "COPD exacerbation",
+      "Mild bilateral wheezing on exam",
+      "Oxygen-dependent at baseline (2-3L)",
+      "Second ED visit same day"
+    ]
+  }},
+  "patient_id": "10838402",
+  "hospitalization_id": "4002138129"
+}}
+```
+
+### Example 2: Simple presentation
+
+**Input snippet:**
+```
+MRN: 12345678
+Account Number: 9876543210
+Chief Complaint: Chest pain
+History: 55-year-old male with chest pain started 2 hours ago, came by car
+```
+
+**Output:**
+```json
+{{
+  "patient_presentation": {{
+    "symptoms": [
+      "Chest pain"
+    ],
+    "symptom_source": "Chief Complaint",
+    "presentation_method": "emergency_department",
+    "presentation_details": "55-year-old male presented with chest pain that started 2 hours prior to arrival. Arrived by private vehicle.",
+    "presentation_timeline": "Symptoms started 2 hours before arrival",
+    "severity_indicators": []
+  }},
+  "patient_id": "12345678",
+  "hospitalization_id": "9876543210"
+}}
+```
+
+### Example 3: Trauma
+
+**Input snippet:**
+```
+MRN: 11223344
+Account Number: 5566778899
+Chief Complaint: Fall with head injury
+EMS transported: Patient fell at home, hit head on counter
+HPI: Tripped over rug, struck forehead, no LOC
+```
+
+**Output:**
+```json
+{{
+  "patient_presentation": {{
+    "symptoms": [
+      "Head injury",
+      "Forehead trauma"
+    ],
+    "symptom_source": "Chief Complaint and History of Present Illness",
+    "presentation_method": "ambulance",
+    "presentation_details": "Patient fell at home after tripping on rug, struck forehead on counter. No loss of consciousness. Transported by EMS.",
+    "presentation_timeline": "Fell earlier today",
+    "severity_indicators": [
+      "EMS transport",
+      "Head trauma requiring evaluation"
+    ]
+  }},
+  "patient_id": "11223344",
+  "hospitalization_id": "5566778899"
+}}
+```
+
+---
+
+## KEY RULES
+
+1. **IDs first** - Always extract patient_id (MRN) and hospitalization_id (Account Number)
+2. **Don't use RRD** - If you see "RRD 5552312523751", that's NOT the MRN
+3. **Symptoms = what patient had on arrival** - Not what developed later
+4. **Keep symptoms simple** - Extract as documented
+5. **Presentation details = tell the story** - How/why they came
+6. **Severity indicators ≠ symptoms** - Add context, don't just repeat symptoms
+7. **Null is OK** - Use null for timeline or presentation_method if not documented
+
+Return only JSON. No other text.
 '''
 
 __all__ = ["system_prompt", "presentation_prompt"]

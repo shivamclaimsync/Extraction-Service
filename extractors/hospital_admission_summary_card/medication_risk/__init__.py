@@ -2,8 +2,8 @@
 
 from .model import (
     AssessmentMethod,
+    MedicationRiskAssessment,
     MedicationRiskExtractionResponse,
-    RiskAssessment,
     RiskFactor,
     RiskLevel,
     RiskSeverity,
@@ -15,7 +15,7 @@ __all__ = [
     "RiskFactor",
     "RiskLevel",
     "AssessmentMethod",
-    "RiskAssessment",
+    "MedicationRiskAssessment",
     "MedicationRiskExtractionResponse",
     "MedicationRiskPydanticAITool",
 ]

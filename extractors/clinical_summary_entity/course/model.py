@@ -29,11 +29,11 @@ class CourseData(BaseModel):
     )
     narrative_summary: Optional[str] = Field(
         default=None,
-        description="Brief narrative summary of the overall clinical course (2-3 sentences)."
+        description="Brief narrative summary of the overall clinical course (2-4 sentences)."
     )
     disposition: Optional[str] = Field(
         default=None,
-        description="Final disposition: discharged_home, admitted_observation, transferred, left_AMA, deceased."
+        description="Final disposition: discharged_home, discharged_home_with_services, admitted_observation, admitted_inpatient, transferred, left_AMA, deceased."
     )
     length_of_stay: Optional[str] = Field(
         default=None,
@@ -42,6 +42,18 @@ class CourseData(BaseModel):
     patient_response: Optional[str] = Field(
         default=None,
         description="Overall patient response to treatment and clinical course."
+    )
+    admission_date: Optional[str] = Field(
+        default=None,
+        description="Admission date in YYYY-MM-DD format."
+    )
+    discharge_date: Optional[str] = Field(
+        default=None,
+        description="Discharge date in YYYY-MM-DD format."
+    )
+    follow_up_plans: List[str] = Field(
+        default_factory=list,
+        description="Documented follow-up instructions and plans."
     )
 
 

@@ -1,416 +1,244 @@
 """Prompts for medication risk assessment extraction."""
 
-system_prompt = """
-You are a medical AI assistant specializing in medication safety analysis with expertise in pharmacology, 
-drug interactions, and adverse drug events. Your role is to objectively assess whether medications played 
-a causal or contributory role in a patient's clinical presentation.
+system_prompt = """You are a medical AI assistant analyzing medication-related risks in clinical documents.
 
-You must provide evidence-based assessments using structured reasoning, cite specific findings from clinical 
-documents, and distinguish between medication presence and medication causation.
+Assess whether medications caused or contributed to hospitalization. Use evidence-based reasoning. 
+Never infer or hallucinate. Extract only what's explicitly documented."""
 
-Follow all task instructions precisely and respond only in valid JSON format.
-"""
+medication_risk_prompt = '''Analyze this clinical note to assess medication-related hospitalization risk. Return ONLY valid JSON.
 
-medication_risk_prompt = '''
-You are analyzing clinical documents to identify medication-related risks. Your analysis must be rigorous, 
-evidence-based, and clinically sound.
-
-## Core Principles
-
-### NULL HYPOTHESIS APPROACH
-**START HERE**: Assume medications are NOT the cause of the clinical presentation unless strong evidence proves otherwise.
-
-You will be PENALIZED for:
-- Over-attributing stable chronic medications as risk factors
-- Ignoring clear alternative explanations  
-- Assigning high risk to presentations obviously unrelated to medications
-- Failing to document why you ruled OUT medication involvement
-
-You will be REWARDED for:
-- Accurate identification of true medication-related problems
-- Appropriate LOW risk assignment when warranted
-- Documenting uncertainty and missing information
-- Providing specific, evidence-based reasoning with direct quotes
-
----
-
-## Step 1: Classify the Clinical Presentation
+**Core Principle**: Assume medications are NOT the cause unless strong evidence proves otherwise. Use null hypothesis approach.
 
 <clinical_note>
 {clinical_text}
 </clinical_note>
 
-**First, determine the presentation type:**
-
-### TYPE A: Medication-Related Presentation (Potential Medium-High Risk)
-Clear evidence that medications caused, contributed to, or complicated the presentation:
-- Medication discontinued due to adverse effect
-- Symptoms consistent with drug toxicity or withdrawal
-- Lab abnormalities indicating drug-induced organ dysfunction
-- Temporal relationship: symptom onset after medication start/change
-- Documented adverse drug reaction or interaction
-
-### TYPE B: Medication Present But Unrelated (Default to Low Risk)
-Medications exist but did NOT cause the presentation:
-- Trauma, injury, mechanical fall with clear non-medication mechanism
-- Environmental issue (power outage, transportation, housing)
-- Infection without medication-related immunosuppression
-- Elective procedure or scheduled admission
-- Patient at clinical baseline throughout encounter
-
-### TYPE C: Medication Management Needed But Not Causative (Low-Medium Risk)
-Medications require adjustment but didn't cause admission:
-- Dose adjustment needed for organ dysfunction that occurred for other reasons
-- Medication reconciliation or formulary substitution
-- Prophylactic medication initiation
-- Chronic disease medication optimization
-
-**CRITICAL**: If presentation is TYPE B or TYPE C, your risk assessment will typically be LOW unless specific high-risk factors are present.
-
 ---
 
-## Step 2: Extract Clinical Context
-
-### 2A. Admission Context
-- **Visit type**: Emergency visit / Hospital admission / Observation / Outpatient
-- **Primary reason for presentation**: (1-2 sentence summary)
-- **Is this presentation medication-related?**: YES / NO / UNCERTAIN
-- **Supporting reasoning**: (Why is/isn't this medication-related?)
-
-### 2B. Patient Clinical Status
-- **Acute vs chronic presentation**: New symptoms or chronic condition exacerbation?
-- **Organ dysfunction present**: Renal / Hepatic / Cardiac / Neurologic / None
-- **Patient stability**: Critical / Unstable / Stable at baseline / Improved from baseline
-
-### 2C. Medication History
-Search these sections: "Home Medications", "Medication Administration", "Assessment/Plan", "History of Present Illness"
-
-Document:
-- **Current medications**: List active medications with doses
-- **Medication changes**: Any started/stopped/dose-adjusted during this encounter?
-- **Recent changes before presentation**: Any changes in past 7-14 days?
-- **Compliance issues**: Any mentioned non-adherence or self-discontinuation?
-
-### 2D. Laboratory and Clinical Findings
-- **Renal function**: Creatinine, eGFR, BUN (note baseline if available)
-- **Hepatic function**: AST, ALT, bilirubin, albumin
-- **Electrolytes**: K, Na, Cl, Ca, Mg
-- **Drug-specific markers**: Lactate, pH, drug levels, troponin, etc.
-- **Vital signs**: Notable abnormalities (hypotension, bradycardia, etc.)
-
----
-
-## Step 3: Risk Factor Identification Using Structured Reasoning
-
-For each potential risk factor, use this reasoning framework:
-
-**OBSERVATION**: [What did you observe in the note?]
-**MECHANISM**: [How could this relate to medication risk?]
-**TEMPORAL RELATIONSHIP**: [Timeline - when did changes occur relative to symptoms?]
-**SUPPORTING EVIDENCE**: [Lab values, quotes, specific findings]
-**ALTERNATIVE EXPLANATIONS**: [What else could explain this?]
-**CONCLUSION**: [Is this a genuine risk factor? What severity?]
-
-### Example Reasoning - HIGH RISK Case
-
-**OBSERVATION**: Patient admitted with altered mental status, acute kidney injury (Cr 2.4, baseline 1.1)
-**MECHANISM**: Patient on Metformin 1000mg BID - discontinued on admission per medication list
-**TEMPORAL RELATIONSHIP**: Metformin dose increased from 500mg to 1000mg BID seven days before admission (per HPI)
-**SUPPORTING EVIDENCE**: 
-- "Creatinine 2.4 mg/dL" (>100% increase from baseline 1.1)
-- "Lactate 4.2 mmol/L" (elevated, normal <2.0)
-- "pH 7.28, bicarbonate 16 mEq/L" (metabolic acidosis)
-- "Metformin discontinued on admission" (from medication list)
-**ALTERNATIVE EXPLANATIONS**: 
-- Dehydration could cause AKI, but doesn't explain lactic acidosis
-- Sepsis could cause both, but no infection documented
-- Metformin-induced lactic acidosis strongly supported by labs
-**CONCLUSION**: HIGH RISK - Critical severity. Metformin likely caused/contributed to lactic acidosis and AKI.
-
-### Example Reasoning - LOW RISK Case
-
-**OBSERVATION**: Patient in ED for power outage at home, needs oxygen concentrator
-**MECHANISM**: Patient has complex medication list (15+ medications) for chronic conditions
-**TEMPORAL RELATIONSHIP**: No recent medication changes documented
-**SUPPORTING EVIDENCE**:
-- "Patient at baseline" (from MDM section)
-- "Chronic findings...no new findings" (from imaging)
-- Vitals stable, saturating 94% on oxygen
-- "All systems otherwise negative" (ROS)
-**ALTERNATIVE EXPLANATIONS**: 
-- This is clearly an environmental/social issue, not medical
-- Patient came to ED solely for oxygen access during power outage
-- No symptoms or findings suggest medication problem
-**CONCLUSION**: LOW RISK - Presentation entirely unrelated to medications. Polypharmacy present but stable chronic therapy, no concerns.
-
----
-
-## Step 4: Apply Evidence-Based Scoring System
-
-Use this structured scoring approach to calculate likelihood percentage:
-
-### Positive Evidence Points (Add these)
-
-| Factor | Points | Criteria |
-|--------|--------|----------|
-| **Strong temporal relationship** | +40 | Symptom onset within expected timeframe after drug start/change; improvement after discontinuation |
-| **Known adverse reaction pattern** | +30 | Documented ADR in literature; matches classic presentation for this drug |
-| **Laboratory confirmation** | +25 | Drug levels in toxic range; biomarkers specific to drug toxicity (e.g., lactate with metformin) |
-| **Previous similar reaction** | +20 | Patient history documents prior reaction to same medication |
-| **Objective clinical evidence** | +15 | Physical exam findings, vital sign changes consistent with drug effect |
-| **Drug-disease contraindication** | +15 | Medication contraindicated given patient's condition (e.g., metformin in severe renal impairment) |
-| **Recent dose escalation** | +10 | Dose increased shortly before symptom onset |
-| **Documented discontinuation** | +10 | Medication explicitly stopped during encounter with stated reason |
-
-### Negative Evidence Points (Subtract these)
-
-| Factor | Points | Criteria |
-|--------|--------|----------|
-| **Strong alternative explanation** | -40 | Clear non-medication cause (trauma, infection, environmental) |
-| **Timing inconsistent** | -30 | Symptom onset doesn't match drug pharmacokinetics |
-| **Continued without worsening** | -20 | Medication continued and patient improved/stabilized |
-| **Dose in therapeutic range** | -15 | Appropriate dose for indication and patient factors |
-| **Chronic stable therapy** | -15 | Long-term medication without previous issues |
-
-### Calculate Final Likelihood
-
-1. **Sum positive evidence points**
-2. **Sum negative evidence points**  
-3. **Calculate net score**: Positive - Negative
-4. **Apply floor of 0 and ceiling of 100**
-5. **Map to percentage**:
-   - Net score ≥70: 85-95% likelihood
-   - Net score 50-69: 60-75% likelihood
-   - Net score 30-49: 40-55% likelihood
-   - Net score 15-29: 20-35% likelihood
-   - Net score <15: 5-15% likelihood
-
----
-
-## Step 5: Severity Classification
-
-### CRITICAL (Life-threatening, immediate intervention required)
-- Medication causing/contributing to organ failure (renal, hepatic, respiratory)
-- Evidence of severe toxicity requiring specific antidote or ICU-level care
-- Drug-induced condition with high mortality risk (lactic acidosis, serotonin syndrome, NMS)
-
-**Examples**: Metformin + lactic acidosis + AKI; Warfarin + ICH; Lithium toxicity with seizures
-
-### MAJOR (Significant risk, prompt intervention needed)
-- Contraindicated medication actively administered
-- Drug-disease interaction with documented clinical consequence
-- Dose adjustment needed >50% due to organ dysfunction
-- Medication-related hospitalization or ED visit
-
-**Examples**: NSAID use in patient with AKI; Drug-drug interaction causing QT prolongation with arrhythmia
-
-### MODERATE (Notable concern, monitoring/adjustment needed)
-- Potential drug interaction without current adverse effect but needs monitoring
-- Medication requiring dose adjustment 20-50%
-- Polypharmacy with specific high-risk combinations in vulnerable patient
-
-**Examples**: Multiple CNS depressants in elderly patient; Renally-cleared drugs in CKD Stage 4 without dose adjustment
-
-### MINOR (Low concern, awareness only)
-- Theoretical interaction without supporting evidence or low clinical significance
-- Stable chronic therapy appropriately managed
-- Incidental findings unrelated to presentation
-
----
-
-## Step 6: What NOT to Flag - Critical Exclusion List
-
-### 🚫 DO NOT assign risk scores above "low" for:
-
-1. **Chronic stable medications without changes or adverse effects**
-   - Patient on same regimen for months/years
-   - No documentation of side effects or complications
-
-2. **Appropriate polypharmacy for multiple comorbidities**
-   - Multiple chronic conditions requiring multiple medications
-   - Each medication indicated and appropriately dosed
-
-3. **Admissions clearly unrelated to medications**
-   - Environmental issues (power outage, transportation)
-   - Trauma with clear mechanism
-   - Social admissions (homelessness, placement)
-   - Scheduled/elective procedures without complications
-
-4. **Theoretical interactions without clinical manifestation**
-   - Database flags potential interaction
-   - No clinical evidence of interaction occurring
-
-5. **Properly dosed for documented organ function**
-   - Renal dosing appropriate for current eGFR
-   - Hepatic dosing appropriate for documented function
-
-### Special Case: Environmental/Social Presentations
-
-```
-IF (visit_type == "Emergency" OR "Observation") AND
-   (reason contains "power outage" OR "transportation" OR "social issue") AND
-   (patient_status == "at baseline" OR "stable") AND
-   (no_medication_changes_documented) AND
-   (no_lab_abnormalities_suggesting_toxicity)
-THEN assign risk_level = "low"
-     assign likelihood_percentage = 5-15%
-```
-
----
-
-## Step 7: Required Documentation Standards
-
-### Evidence Field Requirements
-
-For EVERY risk factor, the "evidence" field must contain:
-
-1. **Direct quotes from note** (use quotation marks)
-2. **Quantitative data with units and reference ranges**
-3. **Medication specifics** (name, dose, frequency, route)
-4. **Temporal relationships with dates**
-5. **Evidence strength rating**: DEFINITIVE / PROBABLE / POSSIBLE / SPECULATIVE
-
-**Example**:
-```
-"evidence": "\"Patient on Metformin 1000mg BID, discontinued on admission\" (from Home Medications). 
-Creatinine 2.4 mg/dL vs baseline 1.1 mg/dL (118% increase, normal 0.6-1.2). eGFR 28 ml/min = Stage 4 CKD. 
-Lactate 4.2 mmol/L (normal <2.0), pH 7.28 (normal 7.35-7.45). Timeline: Metformin increased from 500mg 
-to 1000mg BID seven days prior to admission. Evidence strength: PROBABLE."
-```
-
-### Alternative Explanations (REQUIRED)
-
-You MUST document alternative explanations for the clinical presentation:
-
-```json
-"alternative_explanations": [
-  {{
-    "explanation": "Non-medication cause of presentation",
-    "likelihood": "high|medium|low",
-    "supporting_evidence": "Evidence for alternative explanation",
-    "impact_on_medication_assessment": "How this affects medication causality"
-  }}
-]
-```
-
-### Negative Findings (REQUIRED)
-
-Document what you looked for and did NOT find:
-
-```json
-"negative_findings": [
-  "No recent medication changes documented in past 30 days",
-  "No medications discontinued during this encounter",
-  "No laboratory evidence of drug toxicity",
-  "No temporal relationship between medication changes and symptom onset"
-]
-```
-
----
-
-## JSON Output Schema
-
-Return ONLY valid JSON in this exact structure:
+## Output Schema
 
 ```json
 {{
   "medication_risk_assessment": {{
-    
-    "metadata": {{
-      "note_type": "emergency_visit|inpatient_admission|observation|outpatient_visit",
-      "sections_reviewed": ["Home Medications", "Labs", "Assessment/Plan", "HPI"],
-      "missing_information": ["List any missing key information"],
-      "model_uncertainty_notes": ["Any uncertainties or conflicting data"]
-    }},
-    
-    "clinical_context": {{
-      "presentation_type": "A|B|C",
-      "presentation_type_rationale": "Brief explanation of why Type A/B/C",
-      "primary_reason_for_presentation": "1-2 sentence summary",
-      "is_medication_related": true|false,
-      "medication_relationship_explanation": "Why this is/isn't medication-related",
-      "patient_clinical_status": "critical|unstable|stable_at_baseline|improved",
-      "organ_dysfunction": ["renal", "hepatic", "cardiac", "neurologic"]
-    }},
-    
-    "risk_scoring": {{
-      "positive_evidence_points": 0,
-      "negative_evidence_points": 0,
-      "net_score": 0,
-      "score_breakdown": "Detailed breakdown of scoring"
-    }},
-    
-    "likelihood_percentage": {{
-      "percentage": 0-100,
-      "evidence": "Brief summary of key evidence supporting this likelihood",
-      "calculation_method": "evidence_scoring_system"
-    }},
-    
+    "likelihood_percentage": 0-100,
     "risk_level": "high|medium|low",
-    
     "risk_factors": [
       {{
-        "factor": "Clear, specific description of risk factor",
-        "evidence": "Direct quotes with quantitative data, locations, temporal relationships, evidence strength rating",
+        "factor": "description of risk factor",
+        "evidence": "supporting evidence with quotes and data",
         "severity": "critical|major|moderate|minor",
-        "severity_rationale": "Why this severity was assigned",
-        "implicated_medications": ["Medication Name with dose"],
-        "mechanism": "How this medication causes this risk",
-        "temporal_relationship": "Timeline of events"
+        "implicated_medications": ["medication names"]
       }}
     ],
-    
-    "alternative_explanations": [
-      {{
-        "explanation": "Non-medication cause of presentation",
-        "likelihood": "high|medium|low",
-        "supporting_evidence": "Evidence for alternative explanation",
-        "impact_on_medication_assessment": "How this affects medication causality"
-      }}
-    ],
-    
-    "negative_findings": [
-      "What was checked but not found"
-    ],
-    
     "confidence_score": 0.0-1.0,
-    "confidence_rationale": "Why this confidence level",
     "assessment_method": "ai_analysis",
-    "assessed_at": "2025-MM-DDTHH:MM:SSZ"
+    "assessed_at": "ISO 8601 timestamp"
   }}
 }}
 ```
 
 ---
 
-## Confidence Score Guidelines
+## Assessment Process
 
-- **0.90-1.00 (Very High)**: Strong objective evidence, clear temporal relationship, known mechanism, minimal missing information
-- **0.75-0.89 (High)**: Good supporting evidence, probable causal relationship, some minor information gaps
-- **0.60-0.74 (Moderate)**: Moderate evidence quality, possible relationship, significant information gaps
-- **0.40-0.59 (Low)**: Weak or circumstantial evidence, uncertain relationship, major information gaps
-- **<0.40 (Very Low)**: Speculative assessment, insufficient data
+### Step 1: Determine Presentation Type
+
+**TYPE A - Medication-Related** (Medium-High Risk):
+- Medication discontinued due to adverse effect
+- Symptoms consistent with drug toxicity
+- Lab abnormalities indicating drug-induced organ dysfunction
+- Temporal relationship: symptom onset after medication start/change
+- Documented adverse drug reaction
+
+**TYPE B - Medication Present But Unrelated** (Low Risk):
+- Trauma, injury, mechanical fall with clear non-medication mechanism
+- Environmental issue (power outage, transportation)
+- Infection without medication-related immunosuppression
+- Patient at baseline throughout encounter
+
+**TYPE C - Medication Management Needed** (Low-Medium Risk):
+- Dose adjustment needed for organ dysfunction from other causes
+- Medication reconciliation or formulary substitution
+- Prophylactic medication initiation
+
+**CRITICAL**: If TYPE B or TYPE C, likelihood_percentage should typically be 0-29% (low risk) unless specific high-risk factors present.
+
+### Step 2: Calculate Likelihood Percentage
+
+**Likelihood of medication-related hospitalization** (0-100%):
+
+**High Likelihood (70-100%)** - Strong evidence:
+- Strong temporal relationship (symptom onset within expected timeframe after drug start/change)
+- Known adverse reaction pattern matching documented presentation
+- Laboratory confirmation (drug levels in toxic range, biomarkers specific to drug toxicity)
+- Medication explicitly discontinued due to adverse effect
+- Drug-disease contraindication with documented clinical consequence
+
+**Medium Likelihood (30-69%)** - Moderate evidence:
+- Possible temporal relationship but timing inconsistent
+- Potential drug interaction without clear clinical manifestation
+- Dose adjustment needed due to organ dysfunction
+- Some supporting evidence but alternative explanations exist
+
+**Low Likelihood (0-29%)** - Weak or no evidence:
+- No temporal relationship
+- Clear alternative explanation (trauma, environmental, infection)
+- Stable chronic medications without changes
+- Theoretical interactions without clinical manifestation
+- Presentation clearly unrelated to medications
+
+**Scoring Guidelines**:
+- Start with base likelihood based on presentation type
+- Add points for positive evidence (temporal relationship, lab confirmation, etc.)
+- Subtract points for negative evidence (alternative explanations, inconsistent timing, etc.)
+- Map final score to percentage range
+
+### Step 3: Derive Risk Level
+
+- **high**: likelihood_percentage 70-100%
+- **medium**: likelihood_percentage 30-69%
+- **low**: likelihood_percentage 0-29%
+
+### Step 4: Identify Risk Factors
+
+**CRITICAL**: If risk_level is "low", you MUST include exactly one risk factor:
+```json
+{{
+  "factor": "No medication-related risk detected",
+  "evidence": "Brief explanation of why no medication risk ",
+  "severity": "minor",
+  "implicated_medications": []
+}}
+```
+
+**For medium/high risk, include risk factors if**:
+- Medication-related problem documented
+- Drug-disease interaction with clinical consequence
+- Contraindicated medication administered
+- Dose adjustment needed (>20% change)
+- Drug interaction causing adverse effect
+
+**For each risk factor, extract**:
+- **factor**: Clear, specific description (e.g., "Metformin discontinued - potential lactic acidosis")
+- **evidence**: Direct quotes with quantitative data, medication names/doses, temporal relationships
+- **severity**: 
+  - **critical**: Life-threatening, organ failure, severe toxicity
+  - **major**: Significant risk, prompt intervention needed, contraindicated medication
+  - **moderate**: Notable concern, monitoring/adjustment needed
+  - **minor**: Low concern, awareness only
+- **implicated_medications**: List of medication names involved (optional)
+
+**Exclude**:
+- Stable chronic medications without adverse effects
+- Appropriate polypharmacy for multiple comorbidities
+- Theoretical interactions without clinical manifestation
+- Properly dosed medications for documented organ function
+
+### Step 5: Set Confidence Score
+
+- **0.90-1.00**: Strong objective evidence, clear temporal relationship, minimal missing information
+- **0.75-0.89**: Good supporting evidence, probable relationship, minor information gaps
+- **0.60-0.74**: Moderate evidence quality, possible relationship, significant gaps
+- **0.40-0.59**: Weak evidence, uncertain relationship, major gaps
+- **<0.40**: Speculative assessment, insufficient data
 
 ---
 
-## Final Checklist Before Submitting
+## Examples
 
-- [ ] Presentation type (A/B/C) correctly classified
-- [ ] Risk level matches likelihood percentage (High: 70-100%, Medium: 30-69%, Low: 0-29%)
-- [ ] Likelihood calculated using evidence-based scoring system (not random)
-- [ ] Every risk factor has complete evidence with direct quotes and quantitative data
-- [ ] Evidence strength rated for each risk factor (DEFINITIVE/PROBABLE/POSSIBLE/SPECULATIVE)
-- [ ] Alternative explanations documented and assessed
-- [ ] Negative findings documented
+**Example 1: High Risk - Medication-Related**
+```json
+{{
+  "medication_risk_assessment": {{
+    "likelihood_percentage": 75,
+    "risk_level": "high",
+    "risk_factors": [
+      {{
+        "factor": "Metformin discontinued during admission - potential lactic acidosis",
+        "evidence": "Patient on Metformin 1000mg BID, discontinued on admission, elevated lactate 4.2 mmol/L (normal <2.0), pH 7.28",
+        "severity": "critical",
+        "implicated_medications": ["Metformin"]
+      }},
+      {{
+        "factor": "Recent dose increase 7 days prior to admission",
+        "evidence": "Metformin increased from 500mg BID to 1000mg BID one week before admission per HPI",
+        "severity": "major",
+        "implicated_medications": ["Metformin"]
+      }},
+      {{
+        "factor": "Creatinine elevated to 2.4 mg/dL (from baseline 1.1 mg/dL)",
+        "evidence": "Acute kidney injury with >100% increase in creatinine, eGFR 28 ml/min",
+        "severity": "critical",
+        "implicated_medications": ["Metformin"]
+      }}
+    ],
+    "confidence_score": 0.92,
+    "assessment_method": "ai_analysis",
+    "assessed_at": "2025-10-18T12:00:00Z"
+  }}
+}}
+```
+
+**Example 2: Low Risk - Unrelated Presentation**
+```json
+{{
+  "medication_risk_assessment": {{
+    "likelihood_percentage": 5,
+    "risk_level": "low",
+    "risk_factors": [
+      {{
+        "factor": "No medication-related risk detected",
+        "evidence": "Detailed explanation citing the actual presentation cause, relevant document quotes, and confirmation that medications were stable/appropriate",
+        "severity": "minor",
+        "implicated_medications": []
+      }}
+    ],
+    "confidence_score": 0.95,
+    "assessment_method": "ai_analysis",
+    "assessed_at": "2025-10-18T12:00:00Z"
+  }}
+}}
+```
+
+**Example 3: Medium Risk - Dose Adjustment Needed**
+```json
+{{
+  "medication_risk_assessment": {{
+    "likelihood_percentage": 35,
+    "risk_level": "medium",
+    "risk_factors": [
+      {{
+        "factor": "Gabapentin requires renal dose adjustment",
+        "evidence": "Patient with AKI (Cr 2.4), Gabapentin 600mg TID continued without adjustment, eGFR 28 ml/min",
+        "severity": "moderate",
+        "implicated_medications": ["Gabapentin"]
+      }}
+    ],
+    "confidence_score": 0.80,
+    "assessment_method": "ai_analysis",
+    "assessed_at": "2025-10-18T12:00:00Z"
+  }}
+}}
+```
+
+---
+
+## Validation Checklist
+
+Before returning JSON, verify:
+- [ ] likelihood_percentage is 0-100
+- [ ] risk_level matches percentage (high: 70-100%, medium: 30-69%, low: 0-29%)
+- [ ] **CRITICAL**: If risk_level is "low", risk_factors MUST contain exactly one entry with factor="No medication-related risk detected"
+- [ ] Each risk factor has factor, evidence, severity
+- [ ] implicated_medications is array of strings or omitted
+- [ ] confidence_score is 0.0-1.0
+- [ ] assessed_at is ISO 8601 format
 - [ ] No over-flagging of stable chronic medications
-- [ ] Special cases (ED visits, trauma, environmental issues) handled appropriately
-- [ ] JSON validates against schema
+- [ ] Environmental/trauma presentations appropriately assigned low risk
 
 ---
 
-Respond with ONLY the JSON object. No preamble, no explanation, no markdown code blocks - just the raw JSON.
-
+Return ONLY the JSON object. No explanations or additional text.
 '''
 
 __all__ = ["system_prompt", "medication_risk_prompt"]
-

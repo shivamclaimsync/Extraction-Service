@@ -1,439 +1,459 @@
 """Prompts for relevant history extraction."""
 
-system_prompt = """
-You are a medical AI assistant specializing in medical history extraction from clinical documents.
-
-Your role is to accurately extract relevant pre-existing conditions and comorbidities exactly as 
-documented, without inference or hallucination. You must NEVER invent or infer ICD-10 codes, 
-distinguish between active and historical conditions based on documentation, and extract only 
-conditions relevant to the current encounter.
-
-Follow all task instructions precisely and respond only in valid JSON format.
-"""
-
-history_prompt = """
-You are analyzing clinical documents to extract the patient's relevant medical history. Your extraction 
-must be rigorous, evidence-based, and focused on conditions relevant to the current encounter.
-
-## Core Principles
-
-### EXTRACTION NOT INFERENCE
-**START HERE**: Extract only documented conditions. NEVER infer or generate ICD-10 codes.
-
-You will be PENALIZED for:
-- Inventing or inferring ICD-10 codes not explicitly documented
-- Including entire Past Medical History without filtering for relevance
-- Misclassifying condition status (active vs historical vs resolved)
-- Over-normalizing condition names beyond what's documented
-- Extracting family history or social history as patient conditions
-
-You will be REWARDED for:
-- Extracting ICD-10 codes ONLY when explicitly documented in the note
-- Including only conditions relevant to current encounter
-- Accurate status determination with rationale
-- Proper condition normalization with evidence
-- Appropriate use of null for missing data
-
----
-
-## CRITICAL RULE: ICD-10 Codes
-
-### ICD-10 CODE EXTRACTION RULE:
-
-**ONLY extract ICD-10 codes that are EXPLICITLY documented in the clinical note.**
-
-✅ **EXTRACT when you see**:
-- "Chronic Kidney Disease Stage 3 (N18.3)"
-- "Type 2 Diabetes Mellitus, ICD-10: E11.9"
-- Problem list with codes: "1. COPD (J44.9)"
-
-❌ **DO NOT extract when**:
-- No code documented (set to null)
-- You know the code but it's not in the note (set to null)
-- Code is implied but not stated (set to null)
-
-**If you invent or infer an ICD-10 code, this is considered HALLUCINATION and is WRONG.**
-
-**Format**: Letter + 2-7 characters (e.g., N18.3, E11.9, J44.9)
-
----
-
-## Step 1: Locate Medical History Sections
-
-Search these sections IN ORDER:
-1. **Past Medical History** (or **PMH**)
-2. **Problem List**
-3. **Medical History**
-4. **Comorbidities**
-5. **Active Problems**
-6. **Assessment and Plan** (for relevant chronic conditions)
-
-**DO NOT extract from:**
-- ❌ Family History (conditions of relatives)
-- ❌ Social History (unless it's a patient condition like "Substance Use Disorder")
-- ❌ Home Medications (infer conditions from meds - must be explicitly stated)
-- ❌ Chief Complaint (current symptoms, not history)
-
----
-
-## Step 2: Filter for Relevant Conditions
-
-### Criteria for INCLUSION (must meet ONE):
-
-✅ **INCLUDE conditions that are:**
-1. **Mentioned in Assessment/Plan**: Explicitly discussed in clinical reasoning
-2. **On active medication**: Patient currently taking medication for the condition
-3. **Affects current care**: Influences treatment decisions or monitoring
-4. **Acute exacerbation**: Chronic condition that acutely worsened
-5. **Requires ongoing management**: Active treatment or monitoring documented
-
-### Criteria for EXCLUSION:
-
-❌ **DO NOT include:**
-1. **Entire PMH dump**: Just listing everything from past history
-2. **Resolved childhood conditions**: "History of appendectomy at age 10"
-3. **Family history**: Conditions of parents, siblings, etc.
-4. **Incidental findings**: Not discussed or managed
-5. **Duplicates**: Same condition listed multiple ways
-
-### Examples:
-
-**INCLUDE** (relevant):
-- Chronic Kidney Disease mentioned in A&P with creatinine monitoring
-- Diabetes on active insulin therapy
-- COPD with documented baseline hypoxemia
-- Seizure disorder on levetiracetam
-
-**EXCLUDE** (not relevant to encounter):
-- Appendectomy 30 years ago
-- Benign childhood conditions
-- Family history of diabetes
-- Historical fracture, fully healed, no ongoing issues
-
----
-
-## Step 3: Normalize Condition Names
-
-### Normalization Rules:
-
-1. **Expand common abbreviations** when meaning is clear:
-   - "DM" or "diabetes" → "Diabetes Mellitus" (add Type 1 or Type 2 if specified)
-   - "HTN" → "Hypertension"
-   - "COPD" → "Chronic Obstructive Pulmonary Disease"
-   - "PHT" → "Pulmonary Hypertension"
-   - "OSA" → "Obstructive Sleep Apnea"
-   - "CKD" → "Chronic Kidney Disease"
-   - "CHF" → "Chronic Heart Failure" (add systolic/diastolic if specified)
-
-2. **Combine qualifiers** into single entry:
-   - "Chronic kidney disease" + "Stage 3" → "Chronic Kidney Disease Stage 3"
-   - "Heart failure" + "diastolic" → "Chronic Diastolic Heart Failure"
-
-3. **Keep clinical specificity**:
-   - Use "Type 2 Diabetes Mellitus" not just "Diabetes"
-   - Use "Nonischemic Cardiomyopathy" not just "Cardiomyopathy"
-
-4. **DO NOT over-interpret**:
-   - If note says "DM" without type specified, use "Diabetes Mellitus"
-   - Don't add qualifiers not in documentation
-
-### Normalization Table:
-
-| Documented | Normalized To |
-|------------|---------------|
-| DM, diabetes | Diabetes Mellitus (Type 1/2 if specified) |
-| HTN | Hypertension |
-| COPD | Chronic Obstructive Pulmonary Disease |
-| OSA | Obstructive Sleep Apnea |
-| CKD | Chronic Kidney Disease |
-| CHF | Chronic Heart Failure |
-| PHT | Pulmonary Hypertension |
-| Seizure disorder, epilepsy | Seizure Disorder (or Epilepsy if specified) |
-| Morbid obesity | Morbid Obesity |
-
----
-
-## Step 4: Determine Status
-
-### Status Decision Tree:
-
-Use this logic to assign status:
-
-**ACTIVE**:
-- Currently on medication for the condition
-- Mentioned in Assessment/Plan with active management
-- Ongoing monitoring or treatment noted
-- Chronic condition without "history of" qualifier
-- Problem list condition without "resolved" notation
-
-**HISTORICAL**:
-- Prefaced with "History of", "Previous", "Prior", "Remote"
-- AND no current active management
-- AND not mentioned in Assessment/Plan
-- Past issue no longer requiring care
-
-**RESOLVED**:
-- Explicitly documented as "Resolved"
-- "Status post" treatment with no ongoing issues
-- Clearly stated as inactive or cured
-
-### Keywords Guide:
-
-| Keywords | Likely Status |
-|----------|---------------|
-| Currently, active, ongoing, managed on, baseline | ACTIVE |
-| History of, previous, prior, remote, past | HISTORICAL (if not actively managed) |
-| Resolved, cured, status post, no longer active | RESOLVED |
-
-### Status Rationale:
-
-Document WHY you assigned this status:
-- "Currently on insulin therapy" (active)
-- "Listed in Assessment/Plan with ongoing monitoring" (active)
-- "Noted as 'history of' with no current medication" (historical)
-- "Documented as resolved, no ongoing treatment" (resolved)
-
-**When uncertain**: Default to ACTIVE if the condition is in the problem list or if there's any indication of ongoing relevance.
-
----
-
-## Step 5: Extract Additional Context
-
-### Severity:
-Extract when documented:
-- Staging: "Stage 3", "Stage 4"
-- Grading: "Grade II", "Severe"
-- Classification: "NYHA Class II", "GOLD Stage 3"
-- Quantitative: "GFR 30-59 ml/min", "BMI >40"
-
-### Location:
-Extract anatomical location when specified:
-- "Pressure ulcer of sacral region" → location: "Sacral region"
-- "Left knee osteoarthritis" → location: "Left knee"
-- "Right-sided heart failure" → location: "Right-sided"
-
-### Notes:
-Capture clinically relevant context:
-- Baseline measurements: "Baseline SpO2 86%", "Baseline creatinine 1.2"
-- Recent changes: "Lost 70 pounds recently", "Recently increased from 500mg to 1000mg"
-- Management notes: "Managed with wound care team", "Requires home oxygen"
-- Complications: "History of breakthrough seizures"
-- Control: "Well-controlled on medication", "Poorly controlled"
-
-### Documented_in_section:
-Record where found:
-- "Past Medical History"
-- "Problem List"
-- "Assessment and Plan"
-
----
-
-## JSON Output Schema
-
-```json
-{{
-  "relevant_history": {{
-    "conditions": [
-      {{
-        "condition_name": "string (normalized, REQUIRED)",
-        "icd10_code": "string or null (ONLY if documented)",
-        "icd10_source": "string or null (section where code found)",
-        "severity": "string or null (stage/grade/class)",
-        "status": "active | resolved | historical",
-        "status_rationale": "string or null (why this status)",
-        "location": "string or null (anatomical location)",
-        "notes": "string or null (clinical context)",
-        "documented_in_section": "string or null (source section)"
-      }}
-    ]
-  }}
-}}
-```
-
----
-
-## Examples
-
-### Example 1: Complex Patient with Multiple Conditions
-
-```json
-{{
-  "relevant_history": {{
-    "conditions": [
-      {{
-        "condition_name": "Chronic Kidney Disease Stage 3",
-        "icd10_code": "N18.3",
-        "icd10_source": "Past Medical History",
-        "severity": "GFR 30-59 ml/min",
-        "status": "active",
-        "status_rationale": "Listed in problem list and mentioned in Assessment/Plan with creatinine monitoring",
-        "location": null,
-        "notes": "Baseline creatinine 1.2 mg/dL",
-        "documented_in_section": "Past Medical History"
-      }},
-      {{
-        "condition_name": "Type 2 Diabetes Mellitus",
-        "icd10_code": "E11.9",
-        "icd10_source": "Past Medical History",
-        "severity": null,
-        "status": "active",
-        "status_rationale": "Currently on insulin therapy",
-        "location": null,
-        "notes": "Managed with insulin",
-        "documented_in_section": "Past Medical History"
-      }},
-      {{
-        "condition_name": "Chronic Obstructive Pulmonary Disease",
-        "icd10_code": "J44.9",
-        "icd10_source": "Past Medical History",
-        "severity": null,
-        "status": "active",
-        "status_rationale": "Oxygen-dependent, documented baseline hypoxemia",
-        "location": null,
-        "notes": "Baseline SpO2 86%, requires home oxygen",
-        "documented_in_section": "Past Medical History"
-      }},
-      {{
-        "condition_name": "Pressure Ulcer Stage 3",
-        "icd10_code": "L89.203",
-        "icd10_source": "Problem List",
-        "severity": "Stage 3",
-        "status": "active",
-        "status_rationale": "Currently managed by wound care team",
-        "location": "Sacral region",
-        "notes": "Managed with wound care team",
-        "documented_in_section": "Past Medical History"
-      }},
-      {{
-        "condition_name": "Seizure Disorder",
-        "icd10_code": "G40.909",
-        "icd10_source": "Past Medical History",
-        "severity": null,
-        "status": "active",
-        "status_rationale": "On levetiracetam, history of breakthrough seizures",
-        "location": null,
-        "notes": "History of breakthrough seizures, managed with levetiracetam 750mg BID",
-        "documented_in_section": "Past Medical History"
-      }},
-      {{
-        "condition_name": "Morbid Obesity",
-        "icd10_code": null,
-        "icd10_source": null,
-        "severity": "BMI 61.4",
-        "status": "active",
-        "status_rationale": "Documented in physical exam and problem list",
-        "location": null,
-        "notes": "Lost 70 pounds recently, current weight 167 kg",
-        "documented_in_section": "Past Medical History"
-      }},
-      {{
-        "condition_name": "Hypertension",
-        "icd10_code": null,
-        "icd10_source": null,
-        "severity": null,
-        "status": "active",
-        "status_rationale": "On antihypertensive medications",
-        "location": null,
-        "notes": null,
-        "documented_in_section": "Past Medical History"
-      }}
-    ]
-  }}
-}}
-```
-
-### Example 2: Simple History - Few Conditions
-
-```json
-{{
-  "relevant_history": {{
-    "conditions": [
-      {{
-        "condition_name": "Chronic Obstructive Pulmonary Disease",
-        "icd10_code": null,
-        "icd10_source": null,
-        "severity": null,
-        "status": "active",
-        "status_rationale": "Oxygen-dependent, chronic respiratory failure documented",
-        "location": null,
-        "notes": "Requires home oxygen concentrator",
-        "documented_in_section": "Past Medical History"
-      }},
-      {{
-        "condition_name": "Seizure Disorder",
-        "icd10_code": null,
-        "icd10_source": null,
-        "severity": null,
-        "status": "historical",
-        "status_rationale": "Noted as 'history of seizure' with no current medications or active management",
-        "location": null,
-        "notes": null,
-        "documented_in_section": "Past Medical History"
-      }}
-    ]
-  }}
-}}
-```
-
-### Example 3: No ICD-10 Codes Documented
-
-```json
-{{
-  "relevant_history": {{
-    "conditions": [
-      {{
-        "condition_name": "Diabetes Mellitus",
-        "icd10_code": null,
-        "icd10_source": null,
-        "severity": null,
-        "status": "active",
-        "status_rationale": "Listed in problem list",
-        "location": null,
-        "notes": null,
-        "documented_in_section": "Past Medical History"
-      }},
-      {{
-        "condition_name": "Hypertension",
-        "icd10_code": null,
-        "icd10_source": null,
-        "severity": null,
-        "status": "active",
-        "status_rationale": "On antihypertensive medications",
-        "location": null,
-        "notes": null,
-        "documented_in_section": "Past Medical History"
-      }}
-    ]
-  }}
-}}
-```
-
----
-
-## Validation Checklist
-
-Before submitting, verify:
-
-- [ ] NO ICD-10 codes invented or inferred (only extracted if documented)
-- [ ] icd10_source provided when ICD-10 code extracted
-- [ ] All conditions are relevant to current encounter (not entire PMH)
-- [ ] Condition names properly normalized with standard terminology
-- [ ] Status accurately reflects documentation (active/historical/resolved)
-- [ ] status_rationale provided for all conditions
-- [ ] Severity included when staging/grading documented
-- [ ] Location included when anatomical specificity documented
-- [ ] Notes include relevant clinical context when available
-- [ ] documented_in_section recorded for all conditions
-- [ ] No duplicates (same condition listed multiple ways)
-- [ ] No family history conditions included
-
----
+system_prompt = """You are a medical AI assistant extracting medical history from clinical documents.
+You must extract EVERY relevant condition from Past Medical History - typically 8-15+ conditions.
+Extracting only 1-3 conditions is a FAILURE. Never infer ICD-10 codes. Return valid JSON only."""
+
+history_prompt = """Extract ALL relevant medical history from this clinical note. Return ONLY valid JSON.
 
 <clinical_note>
 {clinical_text}
 </clinical_note>
 
-Respond only with the structured JSON dictionary matching the schema, with no additional text.
+---
+
+## MANDATORY TASK REQUIREMENTS
+
+**TASK FAILURE CONDITIONS** (You will FAIL if you do any of these):
+❌ Extracting fewer than 5 conditions when Past Medical History has 10+ conditions
+❌ Stopping after extracting only 1-3 conditions
+❌ Setting patient_id or hospitalization_id to null
+❌ Inventing ICD-10 codes not in the document
+
+**TASK SUCCESS CONDITIONS** (You PASS if you do these):
+✅ Extract 8-15+ conditions for complex patients
+✅ Extract ALL respiratory conditions for respiratory presentations
+✅ Include conditions from "Comorbidities" section
+✅ Correct patient_id and hospitalization_id extracted
+
+---
+
+## OUTPUT SCHEMA
+```json
+{{
+  "relevant_history": {{
+    "conditions": [
+      {{
+        "condition_name": "string",
+        "icd10_code": "string or null",
+        "icd10_source": "string or null",
+        "severity": "string or null",
+        "status": "active|historical|resolved",
+        "status_rationale": "string",
+        "location": "string or null",
+        "notes": "string or null",
+        "documented_in_section": "string"
+      }}
+    ]
+  }},
+  "patient_id": "MRN string",
+  "hospitalization_id": "Account Number string"
+}}
+```
+
+---
+
+## EXTRACTION ALGORITHM - FOLLOW EXACTLY
+
+### PHASE 1: EXTRACT IDs (Required)
+
+**Find these in document header:**
+
+1. **patient_id = MRN**
+   - Search for: "MRN:", "Medical Record Number:"
+   - Example: "MRN: 10838402" → extract "10838402"
+   - Format: 8-10 digits only
+   - ❌ DO NOT USE: DOC_ID (has hyphens/UUID format), RRD numbers
+
+2. **hospitalization_id = Account Number**
+   - Search for: "Account Number:", "Encounter:", "Visit:"
+   - Example: "Account Number: 4002138129" → extract "4002138129"
+   - Format: ~10 digits
+   - ❌ DO NOT USE: Any UUID/GUID with hyphens
+
+**If either ID is null, you have FAILED the task.**
+
+---
+
+### PHASE 2: SCAN ENTIRE PAST MEDICAL HISTORY
+
+**Objective: Extract EVERY condition mentioned (no filtering yet)**
+
+**Instructions:**
+1. Locate "Past Medical History" or "PMH" section
+2. Read from the first line to the last line of this section
+3. For EACH condition name you see, add it to your list
+4. Do NOT skip any conditions
+5. Do NOT evaluate relevance yet
+6. Do NOT stop after finding 1-2 conditions
+
+**You are looking for condition names like:**
+- Respiratory: COPD, asthma, respiratory failure, chronic hypoxemic respiratory failure, pulmonary fibrosis, idiopathic pulmonary fibrosis, diffuse interstitial pulmonary fibrosis, interstitial lung disease, sleep apnea, pulmonary hypertension
+- Cardiovascular: coronary artery disease, coronary atherosclerosis, CHF, heart failure, valve disorders, aortic valve disorder, arrhythmias, hypertension, HTN
+- Renal: chronic kidney disease, CKD, Stage 3A, AKI, ESRD, renal failure
+- Neurological: dementia, stroke, CVA, seizures, epilepsy, neuropathy, Alzheimer's
+- Metabolic: diabetes, DM, Type 1 DM, Type 2 DM, dyslipidemia, hyperlipidemia, thyroid disease
+- GI: GERD, gastric reflux, cirrhosis, liver disease, pancreatitis
+- Musculoskeletal: arthritis, osteoarthritis, back pain, degenerative disc disease
+- Other: obesity, morbid obesity, chronic pain, cancer, etc.
+
+**EXPECTED RESULT: 10-30 conditions extracted**
+
+**CHECKPOINT**: Count your conditions. If you have fewer than 8 conditions and the Past Medical History section lists 10+ conditions, you MUST rescan.
+
+---
+
+### PHASE 3: CHECK "COMORBIDITIES" SECTION
+
+**Look for "Medical Decision Making" section with subsection "Comorbidities:"**
+
+Example:
+```
+Medical Decision Making
+2. Comorbidities: COPD chronic pain congenital absence of left thumb dementia dyslipidemia dyspnea
+```
+
+**Extract EVERY condition listed after "Comorbidities:"**
+
+These conditions are ALWAYS active and ALWAYS relevant - the clinician explicitly flagged them.
+
+**Add these to your condition list.**
+
+---
+
+### PHASE 4: APPLY RELEVANCE FILTERING
+
+**Now filter the conditions you've extracted.**
+
+**Identify encounter type from primary diagnosis:**
+- Respiratory? (COPD, pneumonia, chemical exposure, respiratory failure)
+- Cardiac? (MI, CHF, chest pain)
+- Renal? (AKI, CKD, urinary issues)
+- Trauma? (falls, injuries)
+- Other?
+
+**KEEP these conditions (Priority 1-4):**
+
+**Priority 1 - Same organ system as primary diagnosis (KEEP ALL):**
+- If respiratory encounter → Keep ALL respiratory conditions
+- If cardiac encounter → Keep ALL cardiac conditions
+- If renal encounter → Keep ALL renal conditions
+
+**Priority 2 - Major organ systems (KEEP ALL):**
+- All cardiovascular conditions
+- All respiratory conditions (if not primary system)
+- All renal conditions (CKD any stage)
+- All neurological conditions
+
+**Priority 3 - Safety/cognitive (KEEP ALL):**
+- Dementia, cognitive impairment, Alzheimer's
+- Conditions affecting safety or judgment
+
+**Priority 4 - Active chronic conditions (KEEP):**
+- Diabetes (any type)
+- Hypertension
+- Dyslipidemia
+- Conditions patient is on active medications for
+
+**REMOVE only these:**
+- ❌ Resolved childhood conditions ("appendectomy at age 10")
+- ❌ Historical surgical procedures with no ongoing issues
+- ❌ Family history conditions
+- ❌ Conditions explicitly marked "resolved" with no current treatment
+
+**EXPECTED RESULT AFTER FILTERING: 8-15+ conditions for complex patient**
+
+**CHECKPOINT**: If you now have fewer than 5 conditions, you have over-filtered. Go back to Phase 2.
+
+---
+
+### PHASE 5: ENRICH EACH CONDITION
+
+For each condition in your filtered list, add:
+
+#### 1. Normalize Condition Name
+
+Expand abbreviations:
+- COPD → Chronic Obstructive Pulmonary Disease
+- HTN → Hypertension
+- DM → Diabetes Mellitus (add Type 1/2 if known)
+- CKD → Chronic Kidney Disease (add stage if documented)
+- CHF → Chronic Heart Failure
+- CAD → Coronary Artery Disease
+- OSA → Obstructive Sleep Apnea
+
+Combine qualifiers:
+- "Chronic kidney disease" + "Stage 3A" → "Chronic Kidney Disease Stage 3A"
+- "Pulmonary fibrosis" + "idiopathic" → "Idiopathic Pulmonary Fibrosis"
+
+#### 2. Extract ICD-10 Code (ONLY if explicitly documented)
+
+✅ Extract when you see:
+- "Chronic Kidney Disease Stage 3A (N18.3)"
+- "COPD (J44.9)"
+
+❌ Set to null when:
+- No code documented
+- Code not explicitly stated
+
+**Never invent codes.**
+
+#### 3. Determine Status
+
+**ACTIVE** (use if ANY of these are true):
+- Patient currently on medication for this condition
+  - Check home meds: insulin → diabetes is active
+  - atorvastatin → dyslipidemia is active
+  - bumetanide → hypertension is active
+- Listed in "Comorbidities" section
+- Mentioned in Assessment/Plan
+- Chronic condition WITHOUT "history of" prefix
+- Baseline measurements documented (e.g., "baseline oxygen requirement")
+- Oxygen-dependent, dialysis-dependent, etc.
+
+**HISTORICAL** (use if ALL of these are true):
+- Has "History of", "Previous", "Prior", "Remote" prefix
+- AND no current medications
+- AND not in Assessment/Plan or Comorbidities
+- AND clearly a resolved past issue
+
+**RESOLVED**:
+- Explicitly says "Resolved", "Cured", "No longer active"
+
+**Default to ACTIVE when uncertain.**
+
+**status_rationale**: Brief explanation (1 sentence)
+- "Currently on atorvastatin for lipid management"
+- "Listed in Medical Decision Making comorbidities"
+- "Oxygen-dependent at baseline"
+
+#### 4. Extract Severity (if documented)
+
+Look for:
+- Staging: "Stage 3A", "GOLD Stage 2"
+- Classification: "NYHA Class III"
+- Descriptors: "Severe", "Moderate", "Mild"
+
+#### 5. Add Notes (clinical context)
+
+**Include if available:**
+- Baseline measurements: "Baseline SpO2 86%"
+- Oxygen/treatment dependence: "Requires 2-3L oxygen continuously"
+- Recent context: "Seen earlier today (2025-08-29) for exacerbation, started on Decadron"
+- Control status: "Well-controlled", "Poorly controlled"
+
+#### 6. Record Source Section
+
+Where was this condition documented?
+- "Past Medical History"
+- "Medical Decision Making - Comorbidities"
+- "Past Medical History; Medical Decision Making" (if multiple)
+
+---
+
+### PHASE 6: FINAL VALIDATION
+
+**Before returning JSON, verify:**
+
+**IDs Check:**
+- [ ] patient_id is NOT null (should be 8-10 digit number)
+- [ ] hospitalization_id is NOT null (should be ~10 digit number)
+- [ ] Did NOT use DOC_ID or UUID format
+
+**Completeness Check:**
+- [ ] Extracted at least 5 conditions (preferably 8-15+)
+- [ ] For respiratory encounter: Included ALL respiratory conditions from PMH
+- [ ] Included ALL conditions from "Comorbidities" section
+- [ ] Did NOT stop after extracting only 1-3 conditions
+
+**Status Check:**
+- [ ] Conditions on medications marked "active"
+- [ ] Conditions in "Comorbidities" marked "active"
+- [ ] Only used "historical" for explicit "history of" phrases
+
+**Quality Check:**
+- [ ] All condition names normalized (full names, not abbreviations)
+- [ ] ICD-10 codes ONLY if documented (no invented codes)
+- [ ] status_rationale provided for all
+- [ ] documented_in_section recorded for all
+
+**If any checkbox is unchecked, fix before proceeding.**
+
+---
+
+## EXAMPLE OUTPUT
+
+### Example: Respiratory Chemical Exposure (Expected 12 conditions)
+```json
+{{
+  "relevant_history": {{
+    "conditions": [
+      {{
+        "condition_name": "Chronic Obstructive Pulmonary Disease",
+        "icd10_code": null,
+        "icd10_source": null,
+        "severity": null,
+        "status": "active",
+        "status_rationale": "Oxygen-dependent at 2-3L baseline, listed in comorbidities, exacerbated by chemical fumes",
+        "location": null,
+        "notes": "Oxygen-dependent at 2-3L continuously. Seen earlier today (2025-08-29) for chest pain, diagnosed with COPD exacerbation, started on Decadron. Current: chemical irritant exacerbated condition.",
+        "documented_in_section": "Past Medical History; Medical Decision Making"
+      }},
+      {{
+        "condition_name": "Chronic Hypoxemic Respiratory Failure",
+        "icd10_code": null,
+        "icd10_source": null,
+        "severity": null,
+        "status": "active",
+        "status_rationale": "Oxygen-dependent at baseline, directly relevant to respiratory presentation",
+        "location": null,
+        "notes": "Secondary to COPD and interstitial lung disease. Baseline oxygen 2-3L continuously.",
+        "documented_in_section": "Past Medical History"
+      }},
+      {{
+        "condition_name": "Idiopathic Pulmonary Fibrosis",
+        "icd10_code": null,
+        "icd10_source": null,
+        "severity": null,
+        "status": "active",
+        "status_rationale": "Chronic progressive lung disease, relevant to respiratory presentation",
+        "location": null,
+        "notes": "Underlying structural lung disease increasing vulnerability to irritants",
+        "documented_in_section": "Past Medical History"
+      }},
+      {{
+        "condition_name": "Diffuse Interstitial Pulmonary Fibrosis",
+        "icd10_code": null,
+        "icd10_source": null,
+        "severity": null,
+        "status": "active",
+        "status_rationale": "Chronic lung disease relevant to respiratory presentation",
+        "location": null,
+        "notes": null,
+        "documented_in_section": "Past Medical History"
+      }},
+      {{
+        "condition_name": "Chronic Respiratory Failure",
+        "icd10_code": null,
+        "icd10_source": null,
+        "severity": null,
+        "status": "active",
+        "status_rationale": "Listed in Past Medical History, oxygen-dependent",
+        "location": null,
+        "notes": null,
+        "documented_in_section": "Past Medical History"
+      }},
+      {{
+        "condition_name": "Interstitial Lung Disease",
+        "icd10_code": null,
+        "icd10_source": null,
+        "severity": null,
+        "status": "active",
+        "status_rationale": "Chronic lung disease relevant to respiratory presentation",
+        "location": null,
+        "notes": null,
+        "documented_in_section": "Past Medical History"
+      }},
+      {{
+        "condition_name": "Dementia",
+        "icd10_code": null,
+        "icd10_source": null,
+        "severity": null,
+        "status": "active",
+        "status_rationale": "Listed in comorbidities, relevant for safety and discharge planning",
+        "location": null,
+        "notes": "May have contributed to accident. Important for home safety and med management.",
+        "documented_in_section": "Past Medical History; Medical Decision Making"
+      }},
+      {{
+        "condition_name": "Coronary Artery Disease",
+        "icd10_code": null,
+        "icd10_source": null,
+        "severity": null,
+        "status": "active",
+        "status_rationale": "Listed in Past Medical History as coronary atherosclerosis",
+        "location": null,
+        "notes": null,
+        "documented_in_section": "Past Medical History"
+      }},
+      {{
+        "condition_name": "Chronic Kidney Disease Stage 3A",
+        "icd10_code": null,
+        "icd10_source": null,
+        "severity": "Stage 3A",
+        "status": "active",
+        "status_rationale": "Listed in Past Medical History, relevant for medication dosing",
+        "location": null,
+        "notes": null,
+        "documented_in_section": "Past Medical History"
+      }},
+      {{
+        "condition_name": "Diabetes",
+        "icd10_code": null,
+        "icd10_source": null,
+        "severity": null,
+        "status": "active",
+        "status_rationale": "Chronic condition requiring ongoing management",
+        "location": null,
+        "notes": null,
+        "documented_in_section": "Past Medical History"
+      }},
+      {{
+        "condition_name": "Hypertension",
+        "icd10_code": null,
+        "icd10_source": null,
+        "severity": null,
+        "status": "active",
+        "status_rationale": "Currently on bumetanide (diuretic/antihypertensive)",
+        "location": null,
+        "notes": null,
+        "documented_in_section": "Past Medical History"
+      }},
+      {{
+        "condition_name": "Dyslipidemia",
+        "icd10_code": null,
+        "icd10_source": null,
+        "severity": null,
+        "status": "active",
+        "status_rationale": "Currently on atorvastatin 20mg daily, listed in comorbidities",
+        "location": null,
+        "notes": null,
+        "documented_in_section": "Past Medical History; Medical Decision Making"
+      }}
+    ]
+  }},
+  "patient_id": "10838402",
+  "hospitalization_id": "4002138129"
+}}
+```
+
+---
+
+## CRITICAL REMINDERS
+
+**YOU MUST:**
+1. ✅ Extract IDs (patient_id and hospitalization_id) - NOT NULL
+2. ✅ Scan ENTIRE Past Medical History section - every line
+3. ✅ Extract 8-15+ conditions for complex patients
+4. ✅ Include ALL respiratory conditions for respiratory presentations
+5. ✅ Include ALL conditions from "Comorbidities" section
+6. ✅ Check medications to determine active status
+7. ✅ Default to "active" status when uncertain
+
+**YOU MUST NOT:**
+1. ❌ Stop after extracting 1-3 conditions
+2. ❌ Set patient_id or hospitalization_id to null
+3. ❌ Invent ICD-10 codes not in document
+4. ❌ Mark conditions as "historical" if patient is on medications for them
+5. ❌ Skip conditions mentioned in "Comorbidities" section
+
+**TASK COMPLETION CRITERIA:**
+- Minimum 5 conditions extracted (8-15+ preferred)
+- Both IDs extracted (not null)
+- No invented ICD-10 codes
+- Accurate status classifications
+
+Return ONLY the JSON. No explanations.
 """
 
 __all__ = ["system_prompt", "history_prompt"]

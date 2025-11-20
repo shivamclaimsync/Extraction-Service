@@ -19,28 +19,14 @@ class MedicationRelationship(BaseModel):
         default_factory=list,
         description="List of medications implicated in the clinical presentation.",
     )
-    mechanism: Optional[str] = Field(
-        default=None,
-        description="Mechanism by which medications contributed to the presentation.",
+    mechanism: str = Field(
+        description="How medications contributed to the presentation.",
     )
-    mechanism_evidence: Optional[str] = Field(
-        default=None,
+    evidence: str = Field(
         description="Section name and direct quote supporting the mechanism.",
     )
     confidence: MedicationRelationshipConfidence = Field(
-        description="Level of confidence in medication relationship."
-    )
-    confidence_rationale: Optional[str] = Field(
-        default=None,
-        description="Explanation of why this confidence level was assigned.",
-    )
-    temporal_relationship: Optional[str] = Field(
-        default=None,
-        description="Timeline of medication use relative to symptom onset.",
-    )
-    additional_factors: List[str] = Field(
-        default_factory=list,
-        description="Contextual factors supporting the medication link (e.g., baseline hypoxemia).",
+        description="Level of confidence in medication relationship.",
     )
 
 
@@ -77,7 +63,22 @@ class FallRiskLevel(str, Enum):
 
 class FallRiskAssessment(BaseModel):
     risk_level: FallRiskLevel
-    contributing_factors: List[str] = Field(default_factory=list)
+    contributing_factors: List[str] = Field(
+        default_factory=list,
+        description="Documented risk factors contributing to fall risk.",
+    )
+
+
+class SecondaryDiagnosis(BaseModel):
+    diagnosis: str = Field(
+        description="Secondary diagnosis text (verbatim from note).",
+    )
+    source: str = Field(
+        description="Section name where this diagnosis was found.",
+    )
+    relationship: str = Field(
+        description="Relationship to primary diagnosis: pre-existing condition, contributing factor, complication of, acute exacerbation, concurrent acute condition.",
+    )
 
 
 class AssessmentData(BaseModel):
@@ -88,9 +89,9 @@ class AssessmentData(BaseModel):
         default=None,
         description="Section name where primary diagnosis was documented.",
     )
-    secondary_diagnoses: List[str] = Field(
+    secondary_diagnoses: List[SecondaryDiagnosis] = Field(
         default_factory=list,
-        description="Secondary or contributing diagnoses explicitly discussed.",
+        description="Secondary or contributing diagnoses with source and relationship.",
     )
     clinical_reasoning: List[str] = Field(
         default_factory=list,
@@ -132,7 +133,7 @@ __all__ = [
     "CauseDetermination",
     "FallRiskLevel",
     "FallRiskAssessment",
+    "SecondaryDiagnosis",
     "AssessmentData",
     "AssessmentExtractionResponse",
 ]
-

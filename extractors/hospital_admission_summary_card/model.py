@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 from .diagnosis.model import DiagnosisData
 from .facility_timing.model import FacilityData, TimingData
-from .medication_risk.model import RiskAssessment
+from .medication_risk.model import MedicationRiskAssessment
 
 
 class HospitalAdmissionSummaryCard(BaseModel):
@@ -23,7 +23,7 @@ class HospitalAdmissionSummaryCard(BaseModel):
     diagnosis: DiagnosisData = Field(
         description="Primary and secondary diagnoses."
     )
-    medication_risk_assessment: RiskAssessment = Field(
+    medication_risk_assessment: MedicationRiskAssessment = Field(
         description="Medication-related risk assessment."
     )
     hospitalization_id: Optional[str] = Field(

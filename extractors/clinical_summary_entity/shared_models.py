@@ -33,9 +33,8 @@ class MedicalCondition(BaseModel):
     status: MedicalConditionStatus = Field(
         description="Status of the condition: active, resolved, or historical."
     )
-    status_rationale: Optional[str] = Field(
-        default=None,
-        description="Justification for the assigned status based on documentation."
+    status_rationale: str = Field(
+        description="Justification for the assigned status based on documentation (required)."
     )
     location: Optional[str] = Field(
         default=None,
@@ -45,9 +44,8 @@ class MedicalCondition(BaseModel):
         default=None,
         description="Additional clinical context (baseline values, recent changes, management notes)."
     )
-    documented_in_section: Optional[str] = Field(
-        default=None,
-        description="Section name where this condition was found."
+    documented_in_section: str = Field(
+        description="Section name where this condition was found (required)."
     )
 
 

@@ -19,9 +19,9 @@ from .facility_timing import (
 )
 from .medication_risk import (
     AssessmentMethod,
+    MedicationRiskAssessment,
     MedicationRiskExtractionResponse,
     MedicationRiskPydanticAITool,
-    RiskAssessment,
     RiskFactor,
     RiskLevel,
     RiskSeverity,
@@ -51,7 +51,7 @@ __all__ = [
     "RiskFactor",
     "RiskLevel",
     "AssessmentMethod",
-    "RiskAssessment",
+    "MedicationRiskAssessment",
     "MedicationRiskExtractionResponse",
     "MedicationRiskPydanticAITool",
 ]
