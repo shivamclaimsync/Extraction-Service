@@ -8,9 +8,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 
-from extraction_service.core.exceptions import DatabaseError, DuplicateRecordError
-from extraction_service.models.hospital_summary_db import HospitalSummary
-from extraction_service.extractors.hospital_admission_summary_card.model import (
+from core.exceptions import DatabaseError, DuplicateRecordError
+from repositories.models.hospital_summary_db import HospitalSummary
+from extractors.hospital_admission_summary_card.model import (
     HospitalAdmissionSummaryCard,
 )
 

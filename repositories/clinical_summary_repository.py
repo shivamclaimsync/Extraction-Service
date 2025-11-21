@@ -8,9 +8,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 
-from extraction_service.core.exceptions import DatabaseError, DuplicateRecordError
-from extraction_service.models.clinical_summary_db import ClinicalSummary
-from extraction_service.extractors.clinical_summary_entity.aggregator import (
+from core.exceptions import DatabaseError, DuplicateRecordError
+from repositories.models.clinical_summary_db import ClinicalSummary
+from extractors.clinical_summary_entity.aggregator import (
     ClinicalSummaryResult,
 )
 

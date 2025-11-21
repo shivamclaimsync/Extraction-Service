@@ -1,10 +1,6 @@
-"""Extractors package - wrappers for existing extraction tools."""
+"""Extractors package - individual extraction tools."""
 
-from .hospital_summary_extractor import HospitalSummaryExtractor
-from .clinical_summary_extractor import ClinicalSummaryExtractor
+# Note: Aggregators have been moved to handlers
+# Individual extractor tools are imported by handlers as needed
 
-__all__ = [
-    "HospitalSummaryExtractor",
-    "ClinicalSummaryExtractor",
-]
-
+__all__ = []

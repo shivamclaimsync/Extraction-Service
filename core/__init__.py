@@ -1,23 +1,14 @@
-"""Core framework components for the extraction service."""
+"""Core infrastructure components for the extraction service."""
 
-from .base_extractor import BaseExtractor
-from .exceptions import (
-    DatabaseError,
-    DuplicateRecordError,
-    ExtractionError,
-    LLMExtractionError,
-    ValidationError,
-)
-from .registry import ExtractorRegistry, registry
+from .exceptions import ExtractionError, DatabaseError, DuplicateRecordError
+from .logging import setup_logging
 
 __all__ = [
-    "BaseExtractor",
+    # Exceptions
     "ExtractionError",
-    "LLMExtractionError",
-    "ValidationError",
     "DatabaseError",
     "DuplicateRecordError",
-    "ExtractorRegistry",
-    "registry",
+    # Logging
+    "setup_logging",
 ]
 

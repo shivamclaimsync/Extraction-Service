@@ -12,7 +12,7 @@ from pydantic_ai.exceptions import ModelRetry, UnexpectedModelBehavior
 try:
     from new.pydantic_ai_settings import pydantic_ai_settings
 except ImportError:
-    from extraction_service.pydantic_ai_settings import pydantic_ai_settings
+    from pydantic_ai_settings import pydantic_ai_settings
 from .model import LabExtractionResponse
 from .prompts import labs_prompt, system_prompt
 

@@ -1,6 +1,5 @@
 """Hospital admission summary card extraction package."""
 
-from .aggregator import HospitalAdmissionSummaryCardExtractor
 from .diagnosis import (
     DiagnosisData,
     DiagnosisExtractionResponse,
@@ -31,7 +30,6 @@ from .model import HospitalAdmissionSummaryCard
 __all__ = [
     # Main classes
     "HospitalAdmissionSummaryCard",
-    "HospitalAdmissionSummaryCardExtractor",
     # Facility & Timing
     "Address",
     "FacilityType",
@@ -55,4 +53,3 @@ __all__ = [
     "MedicationRiskExtractionResponse",
     "MedicationRiskPydanticAITool",
 ]
-

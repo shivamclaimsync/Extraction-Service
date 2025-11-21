@@ -14,8 +14,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from extraction_service.config import settings
-from extraction_service.database.session import init_db
+from config import settings
+from database.session import init_db
 from sqlalchemy import text
 import logging
 

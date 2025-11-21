@@ -9,7 +9,7 @@ from typing import Optional
 from pydantic_ai.agent import Agent
 from pydantic_ai.exceptions import ModelRetry, UnexpectedModelBehavior
 
-from extraction_service.pydantic_ai_settings import pydantic_ai_settings
+from pydantic_ai_settings import pydantic_ai_settings
 
 from .model import MedicationRiskExtractionResponse
 from .prompts import medication_risk_prompt, system_prompt

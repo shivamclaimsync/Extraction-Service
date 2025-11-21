@@ -14,9 +14,9 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from extraction_service.config import settings
-from extraction_service.database.session import init_db
-from extraction_service.services.extraction_service import ExtractionService
+from config import settings
+from database.session import init_db
+from services.extraction_service import ExtractionService
 import logging
 
 logging.basicConfig(level=logging.INFO)
